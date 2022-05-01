@@ -6,7 +6,6 @@ I'm attempting to re-write this using Python's proper XML parsing to see how fas
 import argparse
 import re
 import wikitextparser
-import xml.dom
 import xml.dom.minidom
 import xml.dom.pulldom
 
