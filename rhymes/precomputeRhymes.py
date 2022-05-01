@@ -7,6 +7,8 @@ import subprocess
 import xml.dom
 import xml.dom.pulldom
 
+import wiktionary.pulldomHelpers as pulldomHelpers
+
 INCLUDE_CATS = {'English 2-syllable words'}
 EXCLUDE_CATS = {'English suffix forms', 'English affixes', 'English circumfixes', 'English clitics', 'English infixes', 'English interfixes', 'English prefixes', 'English suffixes'}
 
@@ -52,15 +54,15 @@ def findWords (args):
 	for event, node in doc:
 		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 			doc.expandNode(node)
-			pageId = int(getDescendantContent(node, 'id'))
+			pageId = int(pulldomHelpers.getDescendantContent(node, 'id'))
 			if args.start_id and pageId < args.start_id:
 				if args.verbose and pageId % 10000 == 0:
 					print(f'Skipping ID {pageId}...')
 				continue
 			elif args.verbose and pageId % 5000 == 0:
 				print(f'Processing ID {pageId}...')
-			title = getDescendantContent(node, 'title')
-			text = getDescendantContent(node, 'text')
+			title = pulldomHelpers.getDescendantContent(node, 'title')
+			text = pulldomHelpers.getDescendantContent(node, 'text')
 			if pageId in selectedWords and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):
 				prons = []
 				for pronSet in re.findall('{{IPA\|en\|(.*?)}}', text, flags=re.IGNORECASE):
@@ -207,17 +209,9 @@ def selectCats(catNames, args):
 	# cache selected cats
 	if args.category_cache_path:
 		with open(args.category_cache_path, 'w') as cacheFile:
-			json.dump({k: list(v) for k, v in cats.items()}, cacheFile)
+			json.dump({k: list(v) for k, v in cats.items()}, cacheFile, indent='\t')
 
 	return cats
-
-def getDescendantContent(node, childName):
-	try:
-		child = node.getElementsByTagName(childName)[0]
-		child.normalize()
-		return child.firstChild.data
-	except StopIteration:
-		return None
 
 if __name__ == '__main__':
 	main()
