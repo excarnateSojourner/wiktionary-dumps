@@ -42,8 +42,9 @@ def main():
 						targetNode.replaceWholeText(targetText)
 						# a little hacky, and might not be officially supported, but works for now
 						textNode.childNodes = [targetNode]
+						outFile.write('  ')
 						pageNode.writexml(outFile)
-						outFile.write('\n  ')
+						outFile.write('\n')
 					# no section for target language
 					except StopIteration:
 						pass
