@@ -25,9 +25,9 @@ def main():
 				if ns == args.namespace:
 					outFile.write('\n  ')
 					node.writexml(outFile)
-					if args.verbose and count % VERBOSE_FACTOR == 0:
-						print(count)
-					count += 1
+				if args.verbose and count % VERBOSE_FACTOR == 0:
+					print(count)
+				count += 1
 
 		outFile.write('\n</mediawiki>\n')
 
