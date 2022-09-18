@@ -60,11 +60,12 @@ A CSV file containing a line for every category-page association. Each line cons
 #### Purpose
 To allow one to create lists of terms based on what categories they are in. For example, say you wanted a list of all English multiword terms that are in full modern use. More specifically, you want all terms that are
 
-* in [Category:English multiword terms](https://en.wiktionary.org/wiki/Category:English multiword terms)
+* in [Category:English multiword terms](https://en.wiktionary.org/wiki/Category:English_multiword_terms)
 * and not in any of
-   * [Category:English dated terms](https://en.wiktionary.org/wiki/Category:English dated terms)
-   * [Category:English archaic terms](https://en.wiktionary.org/wiki/Category:English archaic terms)
-   * [Category:English obsolete terms](https://en.wiktionary.org/wiki/Category:English obsolete terms)
+   * [Category:English dated terms](https://en.wiktionary.org/wiki/Category:English_dated_terms)
+   * [Category:English archaic terms](https://en.wiktionary.org/wiki/Category:English_archaic_terms)
+   * [Category:English obsolete terms](https://en.wiktionary.org/wiki/Category:English_obsolete_terms)
+
 `deepCatFilter.py` can do this for you.
 
 #### File inputs
