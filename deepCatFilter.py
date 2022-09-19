@@ -68,7 +68,7 @@ def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, ver
 				if data.pageTitle.startswith(CAT_PREFIX):
 					nextExcludeCats.add(data.pageId)
 					if verbose:
-						print(f'excluding "{pageTitle}"')
+						print(f'excluding contents of the subcategory "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
 				elif returnTitles:
 					excludePages.add(data.pageTitle)
 				else:
