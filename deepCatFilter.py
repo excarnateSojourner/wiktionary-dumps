@@ -1,6 +1,5 @@
 import argparse
 import collections
-import pulldomHelpers
 import xml.dom.pulldom
 
 CAT_PREFIX = 'Category:'
