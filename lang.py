@@ -1,6 +1,5 @@
 '''
 Filter only English terms out of an XML file.
-I'm attempting to re-write this using Python's proper XML parsing to see how fast it is.
 '''
 
 import argparse
