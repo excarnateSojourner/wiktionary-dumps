@@ -1,34 +1,47 @@
 import argparse
 import collections
-import json
 import importlib
+import itertools
 import re
 import subprocess
 import xml.dom
 import xml.dom.pulldom
 
-import wiktionary.pulldomHelpers as pulldomHelpers
+import wiktionary.deepCatFilter
+import wiktionary.pulldomHelpers
 
-INCLUDE_CATS = {'English 2-syllable words'}
-EXCLUDE_CATS = {'English suffix forms', 'English affixes', 'English circumfixes', 'English clitics', 'English infixes', 'English interfixes', 'English prefixes', 'English suffixes'}
+# English 2-syllable words
+INCLUDE_CATS = {5834597}
+# English prefix forms, English suffix forms, English affixes, English circumfixes, English clitics, English infixes, English interfixes, English prefixes, English suffixes
+EXCLUDE_CATS = {52195, 78364, 93234, 261835, 600201, 1600728, 4553094, 6334781, 8734636}
+MAIN_VERBOSE_FACTOR = 10 ** 3
+SKIPPING_VERBOSE_FACTOR = 10 ** 4
+
+VOWELS = 'aeiouæɑɒɔəɚɛɜɝɪʊʌ'
+# the only ASCII char in NON_RHYME_CHARS is a space, even though others may appear to be ASCII
+NON_RHYME_CHARS = '.ˈˌ ͡'
+CONSONANTS = 'bdfhkjlmnpstvwzðŋɡɹʃʒʔθ'
+STANDARD_CHARS = '()ː' + CONSONANTS + VOWELS + NON_RHYME_CHARS
+STANDARD_PRON = r'/[' + STANDARD_CHARS + r']+/'
+PRON_TO_RHYME = r'[' + STANDARD_CHARS + ']*?(\(?[' + VOWELS + r'][' + STANDARD_CHARS + ']*)/$'
 
 def main():
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument('-p', '--pages-path', required=True, help='The XML file containing MediaWiki page text to search through.')
-	parser.add_argument('-c', '--categories-path', help='A text file containing, on each line, a category name and the title of a page in that category (separated by a comma).')
-	parser.add_argument('-r', '--prons-path', required=True, help='A text file containing all English pronunciations.')
-	parser.add_argument('-o', '--output-path', required=True, help='The MediaWiki file to write the words lacking rhymes to. They will be automatically formatted as links listed in five columns. This file will be created if it does not exist, and *overwritten without warning* if it does.')
-	parser.add_argument('-a', '--category-cache-path', help='A JSON file in which to cache categories relevant to finding words without rhymes.')
+	parser.add_argument('-p', '--pages-path', required=True, help='The path of an XML file containing MediaWiki page text to search through.')
+	parser.add_argument('-c', '--categories-path', help='The path of a text file containing, on each line, a category name and the title of a page in that category (separated by a comma).')
+	parser.add_argument('-r', '--prons-path', required=True, help='The path of a text file containing all English pronunciations.')
+	parser.add_argument('-o', '--output-path', required=True, help='The path of a MediaWiki file to write the words lacking rhymes to. They will be automatically formatted as links listed in five columns. This file will be created if it does not exist, and *overwritten without warning* if it does.')
+	parser.add_argument('-w', '--word-cache-path', help='The path of a text file in which to cache the contents of categories relevant to finding words without rhymes. (It will be created if it does not exist.)')
 	parser.add_argument('-f', '--refresh-cache', action='store_true', help='Force a refresh of the cache, even if it appears to be up to date.')
 	parser.add_argument('-i', '--start-id', type=int, help='Skip over all pages with ID less than this.')
 	parser.add_argument('-v', '--verbose', action='store_true', help='Print the words lacking rhymes to stdout as they are found.')
-	parser.add_argument('-e', '--example-count', default=4, type=int, help='The number of example words to give that probably rhyme with the target word. Defaults to 4.')
+	parser.add_argument('-e', '--example-count', default=4, type=int, help='Specify the number of example words to give that probably rhyme with the target word. Defaults to 4.')
 	args = parser.parse_args()
-	if not args.categories_path and not args.category_cache_path:
-		raise ValueError('At least one of --category-path (-c) and --category-cache-path (-a) must be provided.')
+	if not args.categories_path and not args.word_cache_path:
+		raise ValueError('At least one of --category-path (-c) and --word-cache-path (-w) must be provided.')
 
-	words = findWords(args)
+	words = findRhymelessWords(args)
 
 	with open(args.output_path, 'w') as outFile:
 		print('{|class="wikitable"', '!Word', '!Suggested template', '!Rhymes', '!Rhyming pronunciation count', '!Rhyming pronunciation examples', '|-', sep='\n', file=outFile)
@@ -47,30 +60,29 @@ def main():
 				writeTableRow(word, rhymeSiblings, outFile)
 		print('|}', file=outFile)
 
-def findWords (args):
-	selectedCats = selectCats(set.union(INCLUDE_CATS, EXCLUDE_CATS), args)
-	selectedWords = set.union(*(selectedCats[cat] for cat in INCLUDE_CATS)) - set.union(*(selectedCats[cat] for cat in EXCLUDE_CATS))
+def findRhymelessWords(args):
+	catedWords = findCategorizedWords(args)
 	doc = xml.dom.pulldom.parse(args.pages_path)
 	for event, node in doc:
 		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 			doc.expandNode(node)
-			pageId = int(pulldomHelpers.getDescendantContent(node, 'id'))
+			pageId = int(wiktionary.pulldomHelpers.getDescendantContent(node, 'id'))
 			if args.start_id and pageId < args.start_id:
-				if args.verbose and pageId % 10000 == 0:
+				if args.verbose and pageId % SKIPPING_VERBOSE_FACTOR == 0:
 					print(f'Skipping ID {pageId}...')
 				continue
-			elif args.verbose and pageId % 5000 == 0:
+			elif args.verbose and pageId % MAIN_VERBOSE_FACTOR == 0:
 				print(f'Processing ID {pageId}...')
-			title = pulldomHelpers.getDescendantContent(node, 'title')
-			text = pulldomHelpers.getDescendantContent(node, 'text')
-			if pageId in selectedWords and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):
+			title = wiktionary.pulldomHelpers.getDescendantContent(node, 'title')
+			text = wiktionary.pulldomHelpers.getDescendantContent(node, 'text')
+			if pageId in catedWords and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):
 				prons = []
 				for pronSet in re.findall('{{IPA\|en\|(.*?)}}', text, flags=re.IGNORECASE):
 					prons.extend(pronSet.split('|'))
 				yield (title, prons)
 
 def findSiblings(rhyme, args):
-	process = subprocess.run(['grep', rhyme + '/', args.prons_path], capture_output=True)
+	process = subprocess.run(['grep', '-P', f'(ˈ|/[ˈ{CONSONANTS}]*){rhyme}/', args.prons_path], capture_output=True)
 	return process.stdout.decode().splitlines()
 
 def writeTableRow(word, rhymeSiblings, outFile):
@@ -79,11 +91,11 @@ def writeTableRow(word, rhymeSiblings, outFile):
 
 	if rhymeSiblings:
 		if len(rhymeSiblings) == 1:
-			printRow(f'[[{word}#English|{word}]]')
+			printRow(f'{{{{l|en|{word}}}}}')
 			printRow('<code><nowiki>* {{rhymes|en|' + '|'.join(rhymeSiblings) + '|s=2}}</nowiki></code>')
 		else:
 			rowspan = f'rowspan="{len(rhymeSiblings)}"|'
-			printRow(f'{rowspan}[[{word}#English|{word}]]')
+			printRow(f'{rowspan}{{{{l|en|{word}}}}}')
 			printRow(rowspan + '<code><nowiki>* {{rhymes|en|' + '|'.join(rhymeSiblings) + '|s=2}}</nowiki></code>')
 		for rhyme, siblings in rhymeSiblings.items():
 			printRow('{{IPAchar|/-' + rhyme + '/}}')
@@ -91,7 +103,7 @@ def writeTableRow(word, rhymeSiblings, outFile):
 			printRow('; '.join('{{IPAchar|' + example + '}}' for example in siblings[1]))
 			printRow('-')
 	else:
-		printRow(f'[[{word}#English|{word}]]')
+		printRow(f'{{{{l|en|{word}}}}}')
 		printRow('\n|\n|\n|\n|-')
 
 def pronsToRhymes (prons):
@@ -188,30 +200,30 @@ def expandParens (s):
 			combs.append(parts[0] + parts[1] + comb)
 		return combs
 
-def selectCats(catNames, args):
-	if args.category_cache_path and not args.refresh_cache:
+def findCategorizedWords(args):
+	if args.word_cache_path and not args.refresh_cache:
 		try:
-			with open(args.category_cache_path) as cacheFile:
-				cats = json.load(cacheFile)
-				if all(catName in cats for catName in catNames):
-					return {k: set(v) for k, v in cats.items()}
+			with open(args.word_cache_path) as cacheFile:
+				return set(int(line[:-1]) for line in cacheFile)
 		except FileNotFoundError:
 			pass
 
 	# cache is missing or outdated, so we need to refresh it
-	cats = collections.defaultdict(set)
-	with open(args.categories_path) as catPairsFile:
-		for line in catPairsFile:
-			catName, pageId = line.split(',', maxsplit=1)
-			if catName in catNames:
-				cats[catName].add(int(pageId))
+	includeWords = set()
+	excludeWords = set()
+	for data in wiktionary.deepCatFilter.catsGen(args.categories_path):
+		if data.catId in INCLUDE_CATS:
+			includeWords.add(data.pageId)
+		elif data.catId in EXCLUDE_CATS:
+			excludeWords.add(data.pageId)
+	words = includeWords - excludeWords
 
-	# cache selected cats
-	if args.category_cache_path:
-		with open(args.category_cache_path, 'w') as cacheFile:
-			json.dump({k: list(v) for k, v in cats.items()}, cacheFile, indent='\t')
+	if args.word_cache_path:
+		with open(args.word_cache_path, 'w') as cacheFile:
+			for word in words:
+				print(word, file=cacheFile)
 
-	return cats
+	return words
 
 if __name__ == '__main__':
 	main()
