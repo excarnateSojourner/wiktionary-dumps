@@ -12,11 +12,12 @@ def main():
 	parser.add_argument('output_path', help='Path of the file to write the ids of pages in the categories to.')
 	parser.add_argument('-i', '--include', required=True, nargs='+', default=[], help='Categories to include.')
 	parser.add_argument('-e', '--exclude', nargs='+', default=[], help='Categories to exclude (overriding includes).')
-	parser.add_argument('-d', '--ids', action='store_true', help='Indicates that the categories to include and exclude are specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
+	parser.add_argument('-n', '--input-ids', action='store_true', help='Indicates that the categories to include and exclude are specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
+	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
-	if args.ids:
+	if args.input_ids:
 		includeCats = set(int(i) for i in args.include)
 		excludeCats = set(int(i) for i in args.exclude)
 	else:
@@ -33,11 +34,12 @@ def main():
 			if data.catTitle in initialExcludes:
 				excludeCats.add(data.catId)
 				initialExcludes.remove(data.catTitle)
+		print('If you want to include and exclude the same sets of categories later, and you want to provide their IDs instead of titles (so I do not have to translate to IDs for you), here are the IDs formatted as command-line arguments:')
+		print('-i ' + ' '.join(str(i) for i in includeCats) + ' -e ' + ' '.join(str(e) for e in excludeCats) + ' -d')
 
-	pageTitles = catFilter(args.categories_path, includeCats, excludeCats, returnTitles=True, verbose=args.verbose)
+	terms = catFilter(args.categories_path, includeCats, excludeCats, returnTitles=not args.output_ids, verbose=args.verbose)
 	with open(args.output_path, 'w') as outFile:
-		# each of the ids is already suffixed with a newline
-		outFile.writelines(f'{title}\n' for title in pageTitles)
+		outFile.writelines(f'{term}\n' for term in terms)
 
 def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, verbose=False):
 	if verbose:
@@ -52,7 +54,7 @@ def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, ver
 	depth = 0
 	while includeCats or excludeCats:
 		if verbose:
-			print(f'round {depth}')
+			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
 		for data in catsGen(categories_path):
 			if data.catId in includeCats:
 				if data.pageTitle.startswith(CAT_PREFIX):
