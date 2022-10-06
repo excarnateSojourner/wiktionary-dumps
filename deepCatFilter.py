@@ -35,7 +35,7 @@ def main():
 				excludeCats.add(data.catId)
 				initialExcludes.remove(data.catTitle)
 		print('If you want to include and exclude the same sets of categories later, and you want to provide their IDs instead of titles (so I do not have to translate to IDs for you), here are the IDs formatted as command-line arguments:')
-		print('-i ' + ' '.join(str(i) for i in includeCats) + ' -e ' + ' '.join(str(e) for e in excludeCats) + ' -d')
+		print('-i ' + ' '.join(str(i) for i in includeCats) + ' -e ' + ' '.join(str(e) for e in excludeCats) + ' -n')
 
 	terms = catFilter(args.categories_path, includeCats, excludeCats, returnTitles=not args.output_ids, verbose=args.verbose)
 	with open(args.output_path, 'w') as outFile:
@@ -60,7 +60,7 @@ def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, ver
 				if data.pageTitle.startswith(CAT_PREFIX):
 					nextIncludeCats.add(data.pageId)
 					if verbose:
-						print(f'including contents of the subcategory "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
+						print(f'including "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
 				elif returnTitles:
 					includePages.add(data.pageTitle)
 				else:
@@ -69,7 +69,7 @@ def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, ver
 				if data.pageTitle.startswith(CAT_PREFIX):
 					nextExcludeCats.add(data.pageId)
 					if verbose:
-						print(f'excluding contents of the subcategory "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
+						print(f'excluding "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
 				elif returnTitles:
 					excludePages.add(data.pageTitle)
 				else:
