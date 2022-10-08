@@ -23,8 +23,8 @@ def main():
 	else:
 		if args.verbose:
 			print('Translating category names to ids...')
-		initialIncludes = set(args.include)
-		initialExcludes = set(args.exclude)
+		initialIncludes = set(c.removeprefix(CAT_PREFIX) for c in args.include)
+		initialExcludes = set(c.removeprefix(CAT_PREFIX) for c in args.exclude)
 		includeCats = set()
 		excludeCats = set()
 		for data in catsGen(args.categories_path):
