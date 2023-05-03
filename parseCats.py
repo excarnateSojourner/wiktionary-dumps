@@ -13,9 +13,9 @@ CATEGORY_PREFIX = 'Category:'
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('sql_path', help='Path of the file originally named "categorylinks.sql" which gives all category associations.')
-	parser.add_argument('pages_path', help='Path of the pages file containing title / id associations for pages (in all namespaces, including categories).')
-	parser.add_argument('parsed_path', help='Path to write the parsed categories to.')
+	parser.add_argument('sql_path', help='Path of the file giving all category associations. This file is called "categorylinks.sql" in the database dumps.')
+	parser.add_argument('pages_path', help='Path of the pages file containing title / id associations for pages (in all namespaces, including categories). The best file for this from the database dumps is "stub-meta-current.xml".')
+	parser.add_argument('parsed_path', help='Path of the CSV file to write the parsed categories to.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
