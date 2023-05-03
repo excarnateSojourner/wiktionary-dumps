@@ -6,10 +6,11 @@ import wikitextparser
 
 import pulldomHelpers
 
+PAGES_VERBOSITY_FACTOR = 10 ** 4
 CAT_PREFIX = 'Category:'
 # The id of Category:Form-of templates
 FORM_OF_TEMP_CAT_ID = 3991887
-PAGES_VERBOSITY_FACTOR = 10 ** 4
+LABEL_TEMPS = {'label', 'lb', 'lbl'}
 
 CatData = collections.namedtuple('CatData', ['catId', 'catTitle', 'pageId', 'pageTitle'])
 
@@ -23,6 +24,9 @@ def main():
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms.')
 	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktinoary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
+	parser.add_argument('-l', '--label-lang', help='The ISO 639 code of the language for which to exclude labels. Has no effect unless --exclude-labels is also given.')
+	parser.add_argument('-x', '--exclude-labels', nargs='+', default=[], help='Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
+	parser.add_argument('-m', '--exclude-temps', nargs='+', default=[], help='Templates that should cause')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
@@ -51,7 +55,7 @@ def main():
 
 	terms = catFilter(args.categories_path, includeCats, excludeCats, returnTitles=not args.output_ids, verbose=args.verbose)
 	if args.pages_path:
-		terms = formOfFilter(terms, args.categories_path, args.pages_path, args.temps_cache_path, verbose=args.verbose)
+		terms = entryTextFilter(terms, args.categories_path, args.pages_path, args.label_lang, args.exclude_labels, args.exclude_temps, args.temps_cache_path, verbose=args.verbose)
 
 	with open(args.output_path, 'w') as outFile:
 		for term in terms:
@@ -98,21 +102,25 @@ def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, ver
 
 	return includePages - excludePages
 
-def formOfFilter(terms, categories_path, pages_path, temps_cache_path=None, verbose=False):
+def entryTextFilter(terms, categories_path, pages_path, label_lang, exclude_labels, exclude_temps, temps_cache_path=None, verbose=False):
+
+	def generateFormOfTemps(categories_path):
+		return {temp.removeprefix('Template:') for temp in catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), returnTitles=True)}
+
 	if temps_cache_path:
 		try:
 			with open(temps_cache_path) as tempsCacheFile:
 				formOfTemps = set(tempsCacheFile.read().splitlines())
 		except FileNotFoundError:
-			formOfTemps = {temp.removeprefix('Template:') for temp in catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), returnTitles=True)}
+			formOfTemps = generateFormOfTemps(categories_path)
 			with open(temps_cache_path, 'w') as tempsCacheFile:
 				for temp in formOfTemps:
 					print(temp, file=tempsCacheFile)
 	else:
-		formOfTemps = {temp.removeprefix('Template:') for temp in catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), returnTitles=True)}
+		formOfTemps = generateFormOfTemps(categories_path)
 
 	doc = xml.dom.pulldom.parse(pages_path)
-	pageContents = {}
+	senseLines = {}
 
 	if verbose:
 		print('Loading pages data:')
@@ -124,33 +132,40 @@ def formOfFilter(terms, categories_path, pages_path, temps_cache_path=None, verb
 			if term in terms:
 				textNode = next(n for e, n in doc if e == xml.dom.pulldom.START_ELEMENT and n.tagName == 'text')
 				doc.expandNode(textNode)
-				pageContents[term] = pulldomHelpers.getText(textNode)
+				senseLines[term] = [li for li in pulldomHelpers.getText(textNode).splitlines() if li.startswith('# ')]
 
 			if verbose and count % PAGES_VERBOSITY_FACTOR == 0:
 				print(count)
 			count += 1
 
-	if verbose:
-		print('Checking forms...')
-	for term, text in pageContents.items():
-		if not checkTerm(term, text, terms, formOfTemps):
-			terms.remove(term)
-
-	return terms
-
-def checkTerm(term, text, terms, formOfTemps):
-	for line in text.splitlines():
-		if line.startswith('# '):
+	def checkTerm(term):
+		for line in senseLines[term]:
 			temps = wikitextparser.parse(line).templates
 			try:
 				formOfTemp = next(t for t in temps if t.normal_name() in formOfTemps)
 				mainForm = (formOfTemp.get_arg('2') or formOfTemp.get_arg('1')).value
-				if mainForm in terms:
-					return True
+				if mainForm not in terms or not checkTerm(mainForm):
+					continue
 			except StopIteration:
+				pass
+			try:
+				labelTemp = next(t for t in temps if t.normal_name() in LABEL_TEMPS and t.arguments[0].positional and t.get_arg('1').value == 'en')
+				labels = {a.value for a in labelTemp.arguments[1:] if a.positional}
+				if not labels.isdisjoint(exclude_labels):
+					continue
+			except StopIteration:
+				pass
+			if not any(temp.normal_name() in exclude_temps for temp in temps):
 				return True
+		return False
 
-	return False
+	if verbose:
+		print('Checking forms...')
+	for term in senseLines:
+		if not checkTerm(term):
+			terms.remove(term)
+
+	return terms
 
 def catsGen(categories_path):
 	with open(categories_path) as catsFile:
