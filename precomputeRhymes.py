@@ -29,7 +29,7 @@ def main():
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-p', '--pages-path', required=True, help='The path of an XML file containing MediaWiki page text to search through.')
-	parser.add_argument('-c', '--categories-path', help='The path of a text file containing, on each line, a category name and the title of a page in that category (separated by a comma).')
+	parser.add_argument('-c', '--categories-path', help='The path of a CSV file containing category associations, as produced by parseCats.py.')
 	parser.add_argument('-r', '--prons-path', required=True, help='The path of a text file containing all English pronunciations.')
 	parser.add_argument('-o', '--output-path', required=True, help='The path of a MediaWiki file to write the words lacking rhymes to. They will be automatically formatted as links listed in five columns. This file will be created if it does not exist, and *overwritten without warning* if it does.')
 	parser.add_argument('-w', '--word-cache-path', help='The path of a text file in which to cache the contents of categories relevant to finding words without rhymes. (It will be created if it does not exist.)')
