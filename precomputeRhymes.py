@@ -7,8 +7,8 @@ import subprocess
 import xml.dom
 import xml.dom.pulldom
 
-import wiktionary.deepCatFilter
-import wiktionary.pulldomHelpers
+import deepCatFilter
+import pulldomHelpers
 
 # English 2-syllable words
 INCLUDE_CATS = {5834597}
@@ -66,15 +66,15 @@ def findRhymelessWords(args):
 	for event, node in doc:
 		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 			doc.expandNode(node)
-			pageId = int(wiktionary.pulldomHelpers.getDescendantContent(node, 'id'))
+			pageId = int(pulldomHelpers.getDescendantContent(node, 'id'))
 			if args.start_id and pageId < args.start_id:
 				if args.verbose and pageId % SKIPPING_VERBOSE_FACTOR == 0:
 					print(f'Skipping ID {pageId}...')
 				continue
 			elif args.verbose and pageId % MAIN_VERBOSE_FACTOR == 0:
 				print(f'Processing ID {pageId}...')
-			title = wiktionary.pulldomHelpers.getDescendantContent(node, 'title')
-			text = wiktionary.pulldomHelpers.getDescendantContent(node, 'text')
+			title = pulldomHelpers.getDescendantContent(node, 'title')
+			text = pulldomHelpers.getDescendantContent(node, 'text')
 			if pageId in catedWords and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):
 				prons = []
 				for pronSet in re.findall('{{IPA\|en\|(.*?)}}', text, flags=re.IGNORECASE):
@@ -211,7 +211,7 @@ def findCategorizedWords(args):
 	# cache is missing or outdated, so we need to refresh it
 	includeWords = set()
 	excludeWords = set()
-	for data in wiktionary.deepCatFilter.catsGen(args.categories_path):
+	for data in deepCatFilter.catsGen(args.categories_path):
 		if data.catId in INCLUDE_CATS:
 			includeWords.add(data.pageId)
 		elif data.catId in EXCLUDE_CATS:

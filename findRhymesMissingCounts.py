@@ -2,7 +2,7 @@ import argparse
 import re
 import xml.dom.pulldom
 
-import wiktionary.pulldomHelpers as pulldomHelpers
+import pulldomHelpers
 
 def main():
 	parser = argparse.ArgumentParser()
