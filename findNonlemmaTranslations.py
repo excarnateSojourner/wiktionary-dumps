@@ -36,7 +36,7 @@ def main():
 	doc = xml.dom.pulldom.parse(args.pages_path)
 	count = 0
 	print('Non-lemmas with translations:')
-	with open(args.output_path, 'w') as outFile:
+	with open(args.output_path, 'w', encoding='utf-8') as outFile:
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 				doc.expandNode(node)

@@ -43,7 +43,7 @@ def main():
 
 	words = findRhymelessWords(args)
 
-	with open(args.output_path, 'w') as outFile:
+	with open(args.output_path, 'w', encoding='utf-8') as outFile:
 		print('{|class="wikitable"', '!Word', '!Suggested template', '!Rhymes', '!Rhyming pronunciation count', '!Rhyming pronunciation examples', '|-', sep='\n', file=outFile)
 		for word, prons in words:
 			rhymeSiblings = {}
@@ -203,7 +203,7 @@ def expandParens (s):
 def findCategorizedWords(args):
 	if args.word_cache_path and not args.refresh_cache:
 		try:
-			with open(args.word_cache_path) as cacheFile:
+			with open(args.word_cache_path, encoding='utf-8') as cacheFile:
 				return set(int(line[:-1]) for line in cacheFile)
 		except FileNotFoundError:
 			pass
@@ -219,7 +219,7 @@ def findCategorizedWords(args):
 	words = includeWords - excludeWords
 
 	if args.word_cache_path:
-		with open(args.word_cache_path, 'w') as cacheFile:
+		with open(args.word_cache_path, 'w', encoding='utf-8') as cacheFile:
 			for word in words:
 				print(word, file=cacheFile)
 

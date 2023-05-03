@@ -57,7 +57,7 @@ def main():
 	if args.pages_path:
 		terms = entryTextFilter(terms, args.categories_path, args.pages_path, args.label_lang, args.exclude_labels, args.exclude_temps, args.temps_cache_path, verbose=args.verbose)
 
-	with open(args.output_path, 'w') as outFile:
+	with open(args.output_path, 'w', encoding='utf-8') as outFile:
 		for term in terms:
 			print(term, file=outFile)
 
@@ -109,11 +109,11 @@ def entryTextFilter(terms, categories_path, pages_path, label_lang, exclude_labe
 
 	if temps_cache_path:
 		try:
-			with open(temps_cache_path) as tempsCacheFile:
+			with open(temps_cache_path, encoding='utf-8') as tempsCacheFile:
 				formOfTemps = set(tempsCacheFile.read().splitlines())
 		except FileNotFoundError:
 			formOfTemps = generateFormOfTemps(categories_path)
-			with open(temps_cache_path, 'w') as tempsCacheFile:
+			with open(temps_cache_path, 'w', encoding='utf-8') as tempsCacheFile:
 				for temp in formOfTemps:
 					print(temp, file=tempsCacheFile)
 	else:
@@ -168,7 +168,7 @@ def entryTextFilter(terms, categories_path, pages_path, label_lang, exclude_labe
 	return terms
 
 def catsGen(categories_path):
-	with open(categories_path) as catsFile:
+	with open(categories_path, encoding='utf-8') as catsFile:
 		for line in catsFile:
 			fields = (line[:-1].split(',', maxsplit=3))
 			yield CatData(catId=int(fields[0]), catTitle=fields[1], pageId=int(fields[2]), pageTitle=fields[3])

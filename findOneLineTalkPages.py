@@ -31,7 +31,7 @@ def main():
 		print('Reading talk pages...')
 	count = 0
 	talk_doc = xml.dom.pulldom.parse(args.talk_pages_path)
-	with open(args.output_path, 'w') as outFile:
+	with open(args.output_path, 'w', encoding='utf-8') as outFile:
 		for event, node in talk_doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 				talk_doc.expandNode(node)

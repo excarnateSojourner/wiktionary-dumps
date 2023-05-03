@@ -41,8 +41,8 @@ def main():
 	if args.verbose:
 		print(f'Loaded {len(pageTitles)} page titles and {len(catIds)} category ids.')
 		print('Processing categories (SQL):')
-	with open(args.sql_path, errors='ignore') as sqlFile:
-		with open(args.parsed_path, 'w') as pairsFile:
+	with open(args.sql_path, encoding='utf-8', errors='ignore') as sqlFile:
+		with open(args.parsed_path, 'w', encoding='utf-8') as pairsFile:
 			for sqlCount, line in enumerate(sqlFile):
 				if line.startswith('INSERT INTO '):
 					try:

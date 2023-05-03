@@ -11,7 +11,7 @@ def main():
 	args = parser.parse_args()
 
 	doc = xml.dom.pulldom.parse(args.pages_path)
-	with open(args.output_path, 'w') as outFile:
+	with open(args.output_path, 'w', encoding='utf-8') as outFile:
 		outFile.write('== List ==\n{{col4|en\n')
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':

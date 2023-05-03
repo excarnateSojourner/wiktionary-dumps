@@ -16,7 +16,7 @@ def main():
 
 	doc = xml.dom.pulldom.parse(args.input_path)
 	count = 0
-	with open(args.output_path, 'w') as outFile:
+	with open(args.output_path, 'w', encoding='utf-8') as outFile:
 		outFile.write('<mediawiki>')
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
