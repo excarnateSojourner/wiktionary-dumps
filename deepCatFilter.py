@@ -22,11 +22,11 @@ def main():
 	parser.add_argument('-e', '--exclude', nargs='+', default=[], help='Categories to exclude (overriding includes).')
 	parser.add_argument('-n', '--input-ids', action='store_true', help='Indicates that the categories to include and exclude are specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms.')
-	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktinoary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
+	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
 	parser.add_argument('-l', '--label-lang', help='The ISO 639 code of the language for which to exclude labels. Has no effect unless --exclude-labels is also given.')
 	parser.add_argument('-x', '--exclude-labels', nargs='+', default=[], help='Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
-	parser.add_argument('-m', '--exclude-temps', nargs='+', default=[], help='Templates that should cause')
+	parser.add_argument('-m', '--exclude-temps', nargs='+', default=[], help='Templates that should cause terms to be exluded.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
