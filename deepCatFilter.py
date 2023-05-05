@@ -1,5 +1,6 @@
 import argparse
 import collections
+from typing import Iterator, Optional, Union
 import xml.dom.pulldom
 
 import wikitextparser
@@ -61,7 +62,7 @@ def main():
 		for term in terms:
 			print(term, file=outFile)
 
-def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, verbose=False):
+def catFilter(categories_path: str, includeCats: set[int], excludeCats: set[int], returnTitles: bool = False, verbose: bool = False) -> Union[set[int], set[str]]:
 	if verbose:
 		print('Looking for pages and subcategories in specified categories:')
 	# collect subcats to process in the next round
@@ -102,7 +103,7 @@ def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, ver
 
 	return includePages - excludePages
 
-def entryTextFilter(terms, categories_path, pages_path, label_lang, exclude_labels, exclude_temps, temps_cache_path=None, verbose=False):
+def entryTextFilter(terms: set[str], categories_path: str, pages_path: str, label_lang: str, exclude_labels: set[str], exclude_temps: set[str], temps_cache_path: Optional[str] = None, verbose: bool = False) -> set[str]:
 
 	if temps_cache_path:
 		try:
@@ -126,10 +127,10 @@ def entryTextFilter(terms, categories_path, pages_path, label_lang, exclude_labe
 
 	return terms
 
-def findFormOfTemps(categories_path):
+def findFormOfTemps(categories_path: str) -> set[str]:
 	return {temp.removeprefix('Template:') for temp in catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), returnTitles=True)}
 
-def findSenseLines(terms, pages_path, verbose=False):
+def findSenseLines(terms: set[str], pages_path: str, verbose: bool = False) -> dict[str, list[str]]:
 	doc = xml.dom.pulldom.parse(pages_path)
 	senseLines = {}
 
@@ -150,7 +151,7 @@ def findSenseLines(terms, pages_path, verbose=False):
 			count += 1
 	return senseLines
 
-def checkTerm(term, senseLines, formOfTemps, excludeLabels, excludeTemps):
+def checkTerm(term: set[str], senseLines: dict[str, list[str]], formOfTemps: set[str], excludeLabels: set[str], excludeTemps: set[str]) -> bool:
 	print(f'DEBUG: checking {term}')
 	for line in senseLines[term]:
 		temps = wikitextparser.parse(line).templates
@@ -172,7 +173,7 @@ def checkTerm(term, senseLines, formOfTemps, excludeLabels, excludeTemps):
 			return True
 	return False
 
-def catsGen(categories_path):
+def catsGen(categories_path: str) -> Iterator[CatData]:
 	with open(categories_path, encoding='utf-8') as catsFile:
 		for line in catsFile:
 			fields = (line[:-1].split(',', maxsplit=3))
