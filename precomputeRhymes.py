@@ -7,7 +7,7 @@ import subprocess
 import xml.dom
 import xml.dom.pulldom
 
-import deepCatFilter
+import parseCats
 import pulldomHelpers
 
 # English 2-syllable words
@@ -211,7 +211,7 @@ def findCategorizedWords(args):
 	# cache is missing or outdated, so we need to refresh it
 	includeWords = set()
 	excludeWords = set()
-	for data in deepCatFilter.catsGen(args.categories_path):
+	for data in parseCats.catsGen(args.categories_path):
 		if data.catId in INCLUDE_CATS:
 			includeWords.add(data.pageId)
 		elif data.catId in EXCLUDE_CATS:

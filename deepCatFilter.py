@@ -5,6 +5,7 @@ import xml.dom.pulldom
 
 import wikitextparser
 
+import parseCats
 import pulldomHelpers
 
 PAGES_VERBOSITY_FACTOR = 10 ** 4
@@ -12,8 +13,6 @@ CAT_PREFIX = 'Category:'
 # The id of Category:Form-of templates
 FORM_OF_TEMP_CAT_ID = 3991887
 LABEL_TEMPS = {'label', 'lb', 'lbl'}
-
-CatData = collections.namedtuple('CatData', ['catId', 'catTitle', 'pageId', 'pageTitle'])
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -41,7 +40,7 @@ def main():
 		initialExcludes = set(c.removeprefix(CAT_PREFIX) for c in args.exclude)
 		includeCats = set()
 		excludeCats = set()
-		for data in catsGen(args.categories_path):
+		for data in parseCats.catsGen(args.categories_path):
 			if data.catTitle in initialIncludes:
 				includeCats.add(data.catId)
 				initialIncludes.remove(data.catTitle)
@@ -76,7 +75,7 @@ def catFilter(categories_path: str, includeCats: set[int], excludeCats: set[int]
 	while includeCats or excludeCats:
 		if verbose:
 			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
-		for data in catsGen(categories_path):
+		for data in parseCats.catsGen(categories_path):
 			if data.catId in includeCats:
 				if data.pageTitle.startswith(CAT_PREFIX):
 					nextIncludeCats.add(data.pageId)
@@ -158,26 +157,21 @@ def checkTerm(term: set[str], senseLines: dict[str, list[str]], formOfTemps: set
 		try:
 			formOfTemp = next(t for t in temps if t.normal_name() in formOfTemps)
 			mainForm = (formOfTemp.get_arg('2') or formOfTemp.get_arg('1')).value
-			if mainForm not in terms or not checkTerm(mainForm, senseLines, formOfTemps, excludeLabels, excludeTemps):
+			if mainForm not in senseLines or not checkTerm(mainForm, senseLines, formOfTemps, excludeLabels, excludeTemps):
 				continue
 		except StopIteration:
 			pass
 		try:
 			labelTemp = next(t for t in temps if t.normal_name() in LABEL_TEMPS and t.arguments[0].positional and t.get_arg('1').value == 'en')
 			labels = {a.value for a in labelTemp.arguments[1:] if a.positional}
-			if not labels.isdisjoint(exclude_labels):
+			if not labels.isdisjoint(excludeLabels):
 				continue
 		except StopIteration:
 			pass
-		if not any(temp.normal_name() in exclude_temps for temp in temps):
-			return True
+		if any(temp.normal_name() in excludeTemps for temp in temps):
+			continue
+		return True
 	return False
-
-def catsGen(categories_path: str) -> Iterator[CatData]:
-	with open(categories_path, encoding='utf-8') as catsFile:
-		for line in catsFile:
-			fields = (line[:-1].split(',', maxsplit=3))
-			yield CatData(catId=int(fields[0]), catTitle=fields[1], pageId=int(fields[2]), pageTitle=fields[3])
 
 if __name__ == '__main__':
 	main()

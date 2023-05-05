@@ -1,5 +1,7 @@
 import argparse
+import collections
 import re
+from typing import Iterator
 import xml.dom.pulldom
 
 import pulldomHelpers
@@ -8,6 +10,8 @@ PAGES_VERBOSE_FACTOR = 10 ** 4
 SQL_VERBOSE_FACTOR = 400
 CATEGORY_NAMESPACE = 14
 CATEGORY_PREFIX = 'Category:'
+
+CatData = collections.namedtuple('CatData', ['catId', 'catTitle', 'pageId', 'pageTitle'])
 
 def main():
 	parser = argparse.ArgumentParser('Converts a categorylinks.sql file to a more readable, flexible form.')
@@ -22,7 +26,7 @@ def main():
 	pageTitles = {}
 	catIds = {}
 	pagesCount = 0
-	for page in pulldomHelpers.getPageDecendantText(args.pages_path, ['title', 'id', 'ns']):
+	for page in pulldomHelpers.getPageDescendantText(args.pages_path, ['title', 'id', 'ns']):
 		pageTitles[page['id']] = page['title']
 		if int(page['ns']) == CATEGORY_NAMESPACE:
 			catIds[page['title'].removeprefix(CATEGORY_PREFIX)] = page['id']
@@ -54,6 +58,12 @@ def main():
 							pass
 				if args.verbose and sqlCount % SQL_VERBOSE_FACTOR == 0:
 					print(sqlCount)
+
+def catsGen(categories_path: str) -> Iterator[CatData]:
+	with open(categories_path, encoding='utf-8') as catsFile:
+		for line in catsFile:
+			fields = (line[:-1].split(',', maxsplit=3))
+			yield CatData(catId=int(fields[0]), catTitle=fields[1], pageId=int(fields[2]), pageTitle=fields[3])
 
 if __name__ == '__main__':
 	main()

@@ -4,7 +4,7 @@ import sys
 import wikitextparser
 import xml.dom.pulldom
 
-import deepCatFilter
+import parseCats
 import pulldomHelpers
 
 VERBOSE_FACTOR = 10 ** 4
@@ -24,7 +24,7 @@ def main():
 		print('Finding non-lemma terms...')
 	nonLemmaIds = set()
 	lemmaIds = set()
-	for data in deepCatFilter.catsGen(args.categories_path):
+	for data in parseCats.catsGen(args.categories_path):
 		if data.catId == NON_LEMMA_CAT_ID:
 			nonLemmaIds.add(data.pageId)
 		elif data.catId == LEMMA_CAT_ID:
