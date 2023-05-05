@@ -21,7 +21,7 @@ def main():
 	parser.add_argument('-i', '--include', required=True, nargs='+', default=[], help='Categories to include.')
 	parser.add_argument('-e', '--exclude', nargs='+', default=[], help='Categories to exclude (overriding includes).')
 	parser.add_argument('-n', '--input-ids', action='store_true', help='Indicates that the categories to include and exclude are specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
-	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms.')
+	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
 	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
 	parser.add_argument('-l', '--label-lang', help='The ISO 639 code of the language for which to exclude labels. Has no effect unless --exclude-labels is also given.')
@@ -53,7 +53,7 @@ def main():
 		print('If you want to include and exclude the same sets of categories later, and you want to provide their IDs instead of titles (so I do not have to translate to IDs for you), here are the IDs formatted as command-line arguments:')
 		print('-i ' + ' '.join(str(i) for i in includeCats) + ' -e ' + ' '.join(str(e) for e in excludeCats) + ' -n')
 
-	terms = catFilter(args.categories_path, includeCats, excludeCats, returnTitles=not args.output_ids, verbose=args.verbose)
+	terms = catFilter(args.categories_path, includeCats, excludeCats, returnTitles=not args.output_ids and not args.pages_path, verbose=args.verbose)
 	if args.pages_path:
 		terms = entryTextFilter(terms, args.categories_path, args.pages_path, args.label_lang, args.exclude_labels, args.exclude_temps, args.temps_cache_path, verbose=args.verbose)
 
@@ -104,26 +104,37 @@ def catFilter(categories_path, includeCats, excludeCats, returnTitles=False, ver
 
 def entryTextFilter(terms, categories_path, pages_path, label_lang, exclude_labels, exclude_temps, temps_cache_path=None, verbose=False):
 
-	def generateFormOfTemps(categories_path):
-		return {temp.removeprefix('Template:') for temp in catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), returnTitles=True)}
-
 	if temps_cache_path:
 		try:
 			with open(temps_cache_path, encoding='utf-8') as tempsCacheFile:
 				formOfTemps = set(tempsCacheFile.read().splitlines())
 		except FileNotFoundError:
-			formOfTemps = generateFormOfTemps(categories_path)
+			formOfTemps = findFormOfTemps(categories_path)
 			with open(temps_cache_path, 'w', encoding='utf-8') as tempsCacheFile:
 				for temp in formOfTemps:
 					print(temp, file=tempsCacheFile)
 	else:
-		formOfTemps = generateFormOfTemps(categories_path)
+		formOfTemps = findFormOfTemps(categories_path)
 
+	senseLines = findSenseLines(terms, pages_path, verbose)
+
+	if verbose:
+		print('Checking forms...')
+	for term in senseLines:
+		if not checkTerm(term, senseLines, formOfTemps, excludeLabels, excludeTemps):
+			terms.remove(term)
+
+	return terms
+
+def findFormOfTemps(categories_path):
+	return {temp.removeprefix('Template:') for temp in catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), returnTitles=True)}
+
+def findSenseLines(terms, pages_path, verbose=False):
 	doc = xml.dom.pulldom.parse(pages_path)
 	senseLines = {}
 
 	if verbose:
-		print('Loading pages data:')
+		print('\nLoading pages data:')
 	count = 0
 	for event, node in doc:
 		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'title':
@@ -137,35 +148,29 @@ def entryTextFilter(terms, categories_path, pages_path, label_lang, exclude_labe
 			if verbose and count % PAGES_VERBOSITY_FACTOR == 0:
 				print(count)
 			count += 1
+	return senseLines
 
-	def checkTerm(term):
-		for line in senseLines[term]:
-			temps = wikitextparser.parse(line).templates
-			try:
-				formOfTemp = next(t for t in temps if t.normal_name() in formOfTemps)
-				mainForm = (formOfTemp.get_arg('2') or formOfTemp.get_arg('1')).value
-				if mainForm not in terms or not checkTerm(mainForm):
-					continue
-			except StopIteration:
-				pass
-			try:
-				labelTemp = next(t for t in temps if t.normal_name() in LABEL_TEMPS and t.arguments[0].positional and t.get_arg('1').value == 'en')
-				labels = {a.value for a in labelTemp.arguments[1:] if a.positional}
-				if not labels.isdisjoint(exclude_labels):
-					continue
-			except StopIteration:
-				pass
-			if not any(temp.normal_name() in exclude_temps for temp in temps):
-				return True
-		return False
-
-	if verbose:
-		print('Checking forms...')
-	for term in senseLines:
-		if not checkTerm(term):
-			terms.remove(term)
-
-	return terms
+def checkTerm(term, senseLines, formOfTemps, excludeLabels, excludeTemps):
+	print(f'DEBUG: checking {term}')
+	for line in senseLines[term]:
+		temps = wikitextparser.parse(line).templates
+		try:
+			formOfTemp = next(t for t in temps if t.normal_name() in formOfTemps)
+			mainForm = (formOfTemp.get_arg('2') or formOfTemp.get_arg('1')).value
+			if mainForm not in terms or not checkTerm(mainForm, senseLines, formOfTemps, excludeLabels, excludeTemps):
+				continue
+		except StopIteration:
+			pass
+		try:
+			labelTemp = next(t for t in temps if t.normal_name() in LABEL_TEMPS and t.arguments[0].positional and t.get_arg('1').value == 'en')
+			labels = {a.value for a in labelTemp.arguments[1:] if a.positional}
+			if not labels.isdisjoint(exclude_labels):
+				continue
+		except StopIteration:
+			pass
+		if not any(temp.normal_name() in exclude_temps for temp in temps):
+			return True
+	return False
 
 def catsGen(categories_path):
 	with open(categories_path, encoding='utf-8') as catsFile:
