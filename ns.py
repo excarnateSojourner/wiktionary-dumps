@@ -20,11 +20,14 @@ def main():
 		outFile.write('<mediawiki>')
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
-				doc.expandNode(node)
-				ns = int(pulldomHelpers.getDescendantContent(node, 'ns'))
+				pageNode = node
+				nsNode = next(no for ev, no in doc if ev == xml.dom.pulldom.START_ELEMENT and no.tagName == 'ns')
+				doc.expandNode(nsNode)
+				ns = int(pulldomHelpers.getText(nsNode))
 				if ns == args.namespace:
+					doc.expandNode(pageNode)
 					outFile.write('\n  ')
-					node.writexml(outFile)
+					pageNode.writexml(outFile)
 				if args.verbose and count % VERBOSE_FACTOR == 0:
 					print(count)
 				count += 1
