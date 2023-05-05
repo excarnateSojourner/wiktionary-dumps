@@ -23,20 +23,15 @@ def main():
 		print('Loading title / id associations...')
 	pageTitles = {}
 	catIds = {}
-	doc = xml.dom.pulldom.parse(args.pages_path)
 	pagesCount = 0
-	for event, node in doc:
-		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
-			doc.expandNode(node)
-			pageTitle = pulldomHelpers.getDescendantContent(node, 'title')
-			pageId = pulldomHelpers.getDescendantContent(node, 'id')
-			pageTitles[pageId] = pageTitle
-			if int(pulldomHelpers.getDescendantContent(node, 'ns')) == CATEGORY_NAMESPACE:
-				catIds[pageTitle.removeprefix(CATEGORY_PREFIX)] = pageId
-			if args.verbose:
-				if pagesCount % PAGES_VERBOSE_FACTOR == 0:
-					print(pagesCount)
-				pagesCount += 1
+	for page in pulldomHelpers.getPageDecendantText(args.pages_path, ['title', 'id', 'ns']):
+		pageTitles[page['id']] = page['title']
+		if int(page['ns']) == CATEGORY_NAMESPACE:
+			catIds[page['title'].removeprefix(CATEGORY_PREFIX)] = page['id']
+		if args.verbose:
+			if pagesCount % PAGES_VERBOSE_FACTOR == 0:
+				print(pagesCount)
+			pagesCount += 1
 
 	if args.verbose:
 		print(f'Loaded {len(pageTitles)} page titles and {len(catIds)} category ids.')
