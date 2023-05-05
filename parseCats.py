@@ -10,7 +10,7 @@ CATEGORY_NAMESPACE = 14
 CATEGORY_PREFIX = 'Category:'
 
 def main():
-	parser = argparse.ArgumentParser('Cleans up a categorylinks.sql file so that it can be read as comma separated category-page pairs.')
+	parser = argparse.ArgumentParser('Converts a categorylinks.sql file to a more readable, flexible form.')
 	parser.add_argument('sql_path', help='Path of the file giving all category associations. This file (after it is unzipped) is called "categorylinks.sql" in the database dumps.')
 	parser.add_argument('pages_path', help='Path of the pages file containing title / id associations for pages (in all namespaces, including categories). The best file for this from the database dumps is "stub-meta-current.xml".')
 	parser.add_argument('parsed_path', help='Path of the CSV file to write the parsed categories to.')
@@ -35,7 +35,7 @@ def main():
 		print(f'Loaded {len(pageTitles)} page titles and {len(catIds)} category ids.')
 		print('Processing categories (SQL):')
 	with open(args.sql_path, encoding='utf-8', errors='ignore') as sqlFile:
-		with open(args.parsed_path, 'w', encoding='utf-8') as pairsFile:
+		with open(args.parsed_path, 'w', encoding='utf-8') as outFile:
 			for sqlCount, line in enumerate(sqlFile):
 				if line.startswith('INSERT INTO '):
 					try:
@@ -48,7 +48,7 @@ def main():
 						catTitle = row[1].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
 						pageId = row[0]
 						try:
-							print(f'{catIds[catTitle]},{catTitle},{pageId},{pageTitles[pageId]}', file=pairsFile)
+							print(f'{catIds[catTitle]},{catTitle},{pageId},{pageTitles[pageId]}', file=outFile)
 						except KeyError:
 							# a category may not be found if it is in use but has no page
 							pass
