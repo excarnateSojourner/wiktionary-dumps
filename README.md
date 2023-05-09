@@ -35,7 +35,7 @@ To create trimmed-down copies of pages files that only contain the titles, names
 #### Implementation
 Rather than a Python program, I just used grep to achieve this:
 ```bash
-grep -E '^\s{,4}<(mediawiki|/mediawiki>|page|/page>|title|ns|id)' input.xml > output.xml
+grep -E '^\s{,6}<(mediawiki|/mediawiki>|namespaces|/namespaces>|namespace|page|/page>|title|ns|id)' input.xml > output.xml
 ```
 I've only tested this on [Debian](https://en.wikipedia.org/wiki/Debian).
 
