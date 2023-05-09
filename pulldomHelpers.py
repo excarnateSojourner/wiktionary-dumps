@@ -27,3 +27,9 @@ def getPageDescendantText(path: str, tags: list[str]) -> Iterable[dict[str, str]
 			yield values
 	except StopIteration:
 		return
+
+def getNamespaceTitles(path: str) -> dict[int, str]:
+	doc = xml.dom.pulldom.parse(path)
+	node = next(node for event, node in doc if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'namespaces')
+	doc.expandNode(node)
+	return {int(ns.getAttribute('key')): getText(ns) for ns in node.getElementsByTagName('namespace')}
