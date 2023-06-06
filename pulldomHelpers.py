@@ -2,6 +2,11 @@ from typing import Iterable, Optional
 import xml.dom.minidom
 import xml.dom.pulldom
 
+def getNode(doc: xml.dom.pulldom.DOMEventStream, tag: str):
+	node = next(no for ev, no in doc if ev == xml.dom.pulldom.START_ELEMENT and no.tagName == tag)
+	doc.expandNode(node)
+	return node
+
 def getDescendantContent(node: xml.dom.minidom.Element, childName: str) -> Optional[str]:
 	try:
 		return getText(node.getElementsByTagName(childName)[0])
