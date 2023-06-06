@@ -1,5 +1,5 @@
 import argparse
-import re
+import xml.dom.minidom
 import xml.dom.pulldom
 
 import pulldomHelpers
@@ -19,16 +19,12 @@ def main():
 	count = 0
 	with open(args.output_path, 'w', encoding='utf-8') as outFile:
 		outFile.write('<mediawiki>')
-		for event, node in doc:
-			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
-				pageNode = node
-				nsNode = next(no for ev, no in doc if ev == xml.dom.pulldom.START_ELEMENT and no.tagName == 'ns')
-				doc.expandNode(nsNode)
-				ns = int(pulldomHelpers.getText(nsNode))
+		for event, pageNode in doc:
+			if event == xml.dom.pulldom.START_ELEMENT and pageNode.tagName == 'page':
+				doc.expandNode(pageNode)
+				ns = int(pulldomHelpers.getDescendantText(pageNode, 'ns'))
 				if ns in namespaces:
-					doc.expandNode(pageNode)
-					outFile.write('\n  ')
-					pageNode.writexml(outFile)
+					outFile.write(f'\n  {pageNode.toxml()}')
 				if args.verbose and count % VERBOSE_FACTOR == 0:
 					print(count)
 				count += 1
