@@ -10,9 +10,10 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('input_path')
 	parser.add_argument('output_path')
-	parser.add_argument('namespace', type=int, help='The index of the namespace to filter out.')
+	parser.add_argument('namespaces', nargs='+', type=int, help='The index(es) of the namespace(s) to select.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
+	namespaces = set(args.namespaces)
 
 	doc = xml.dom.pulldom.parse(args.input_path)
 	count = 0
@@ -24,7 +25,7 @@ def main():
 				nsNode = next(no for ev, no in doc if ev == xml.dom.pulldom.START_ELEMENT and no.tagName == 'ns')
 				doc.expandNode(nsNode)
 				ns = int(pulldomHelpers.getText(nsNode))
-				if ns == args.namespace:
+				if ns in namespaces:
 					doc.expandNode(pageNode)
 					outFile.write('\n  ')
 					pageNode.writexml(outFile)
