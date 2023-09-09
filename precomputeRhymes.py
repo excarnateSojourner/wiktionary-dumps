@@ -66,15 +66,15 @@ def findRhymelessWords(args):
 	for event, node in doc:
 		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 			doc.expandNode(node)
-			pageId = int(pulldomHelpers.getDescendantContent(node, 'id'))
+			pageId = int(pulldomHelpers.getDescendantText(node, 'id'))
 			if args.start_id and pageId < args.start_id:
 				if args.verbose and pageId % SKIPPING_VERBOSE_FACTOR == 0:
 					print(f'Skipping ID {pageId}...')
 				continue
 			elif args.verbose and pageId % MAIN_VERBOSE_FACTOR == 0:
 				print(f'Processing ID {pageId}...')
-			title = pulldomHelpers.getDescendantContent(node, 'title')
-			text = pulldomHelpers.getDescendantContent(node, 'text')
+			title = pulldomHelpers.getDescendantText(node, 'title')
+			text = pulldomHelpers.getDescendantText(node, 'text')
 			if pageId in catedWords and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):
 				prons = []
 				for pronSet in re.findall('{{IPA\|en\|(.*?)}}', text, flags=re.IGNORECASE):

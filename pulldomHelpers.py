@@ -7,7 +7,7 @@ def getNode(doc: xml.dom.pulldom.DOMEventStream, tag: str):
 	doc.expandNode(node)
 	return node
 
-def getDescendantContent(node: xml.dom.minidom.Element, childName: str) -> Optional[str]:
+def getDescendantText(node: xml.dom.minidom.Element, childName: str) -> Optional[str]:
 	try:
 		return getText(node.getElementsByTagName(childName)[0])
 	except StopIteration:

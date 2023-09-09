@@ -16,9 +16,9 @@ def main():
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 				doc.expandNode(node)
-				for line in pulldomHelpers.getDescendantContent(node, 'text').splitlines():
+				for line in pulldomHelpers.getDescendantText(node, 'text').splitlines():
 					if re.match(r'\s*\* {{rhymes\|en\|', line) and not re.search(r'\|s\d*=\d+', line):
-						title = pulldomHelpers.getDescendantContent(node, 'title')
+						title = pulldomHelpers.getDescendantText(node, 'title')
 						outFile.write(f'| {title}\n')
 						break
 		outFile.write('|sort=0|collapse=0}}')

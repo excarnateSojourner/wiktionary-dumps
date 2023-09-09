@@ -35,10 +35,10 @@ def main():
 		for event, node in talk_doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 				talk_doc.expandNode(node)
-				title = pulldomHelpers.getDescendantContent(node, 'title')
-				timestamp = pulldomHelpers.getDescendantContent(node, 'timestamp')
+				title = pulldomHelpers.getDescendantText(node, 'title')
+				timestamp = pulldomHelpers.getDescendantText(node, 'timestamp')
 				if title.removeprefix(TALK_PREFIX) in englishTitles and timestamp >= args.start_date:
-					text = pulldomHelpers.getDescendantContent(node, 'text')
+					text = pulldomHelpers.getDescendantText(node, 'text')
 					if len(text.split('\n', maxsplit=1)) == 1:
 						mat = re.search('\W(2\d{3})\W.{,10}?$', text)
 						if mat and mat[1] >= args.start_date[:4]:

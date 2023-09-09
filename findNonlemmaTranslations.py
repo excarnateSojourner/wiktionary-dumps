@@ -40,12 +40,12 @@ def main():
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 				doc.expandNode(node)
-				if int(pulldomHelpers.getDescendantContent(node, 'id')) in ids:
-					ast = wikitextparser.parse(pulldomHelpers.getDescendantContent(node, 'text'))
+				if int(pulldomHelpers.getDescendantText(node, 'id')) in ids:
+					ast = wikitextparser.parse(pulldomHelpers.getDescendantText(node, 'text'))
 					try:
 						englishSection = next(s for s in ast.get_sections(level=2) if s.title.strip() == 'English')
 						if '{{trans-top|' in englishSection:
-							print(pulldomHelpers.getDescendantContent(node, 'title'), file=outFile)
+							print(pulldomHelpers.getDescendantText(node, 'title'), file=outFile)
 					except StopIteration:
 						# term has no English definitions
 						pass
