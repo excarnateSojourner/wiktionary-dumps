@@ -24,6 +24,7 @@ def main():
 	parser.add_argument('-e', '--exclude', nargs='+', default=[], help='Categories to exclude (overriding includes).')
 	parser.add_argument('-n', '--input-ids', action='store_true', help='Indicates that the categories to include and exclude are specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
+	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. Zero means just immediate children, one means children and grandchildren, etc. A negative value means no limit.')
 	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
 	parser.add_argument('-r', '--redirects-path', help='The path of the CSV redirects file produced by parseRedirects.py. Ignored if --pages-path is not given.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
@@ -56,15 +57,15 @@ def main():
 		print('If you want to include and exclude the same sets of categories later, and you want to provide their IDs instead of titles (so I do not have to translate to IDs for you), here are the IDs formatted as command-line arguments:')
 		print('-i ' + ' '.join(str(i) for i in include_cats) + ' -e ' + ' '.join(str(e) for e in exclude_cats) + ' -n')
 
-	terms = catFilter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, verbose=args.verbose)
+	terms = catFilter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 	if args.pages_path:
-		terms = entryTextFilter(terms, args.categories_path, args.pages_path, args.redirects_path, args.temps_cache_path, args.label_lang, args.exclude_labels, args.exclude_temps, verbose=args.verbose)
+		terms = entryTextFilter(terms, args.categories_path, args.pages_path, args.redirects_path, args.temps_cache_path, args.label_lang, args.exclude_labels, args.exclude_temps, args.verbose)
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for term in terms:
 			print(term, file=out_file)
 
-def catFilter(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, verbose: bool = False) -> Union[set[int], set[str]]:
+def catFilter(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
 	if verbose:
 		print('Looking for pages and subcategories in specified categories:')
 	# collect subcats to process in the next round
@@ -75,7 +76,7 @@ def catFilter(categories_path: str, include_cats: set[int], exclude_cats: set[in
 	exclude_pages = set()
 
 	depth = 0
-	while include_cats or exclude_cats:
+	while (include_cats or exclude_cats) and (max_depth < 0 or depth <= max_depth):
 		if verbose:
 			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
 		for data in parseCats.catsGen(categories_path):
@@ -116,13 +117,15 @@ def entryTextFilter(terms: set[str], categories_path: str, pages_path: str, redi
 			with open(temps_cache_path, encoding='utf-8') as temps_cache_file:
 				form_of_temps = set(temps_cache_file.read().splitlines())
 		except FileNotFoundError:
-			form_of_temps = findFormOfTemps(categories_path, redirects_path)
+			form_of_temps = catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
 			with open(temps_cache_path, 'w', encoding='utf-8') as temps_cache_file:
 				for temp in form_of_temps:
 					print(temp, file=temps_cache_file)
 	else:
-		form_of_temps = findFormOfTemps(categories_path, redirects_path)
+		form_of_temps = catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
 
+	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in includeRedirects(form_of_temps, redirects_path)}
+	exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in includeRedirects({f'{TEMP_PREFIX}:{temp}' for temp in exclude_temps}, redirects_path)}
 	sense_lines = findSenseLines(terms, pages_path, verbose)
 
 	if verbose:
@@ -132,14 +135,6 @@ def entryTextFilter(terms: set[str], categories_path: str, pages_path: str, redi
 			terms.remove(term)
 
 	return terms
-
-def findFormOfTemps(categories_path: str, redirects_path: str) -> set[str]:
-	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)}
-	# assumes no double redirects to form-of templates exist
-	for red in parseRedirects.redirectsGen(redirects_path):
-		if red.dstTitle.startswith(TEMP_PREFIX) and red.dstTitle.removeprefix(TEMP_PREFIX) in form_of_temps:
-			form_of_temps.add(red.srcTitle.removeprefix(TEMP_PREFIX))
-	return form_of_temps
 
 def findSenseLines(terms: set[str], pages_path: str, verbose: bool = False) -> dict[str, list[str]]:
 	doc = xml.dom.pulldom.parse(pages_path)
@@ -186,6 +181,14 @@ def checkTerm(term: set[str], sense_lines: dict[str, list[str]], form_of_temps: 
 			continue
 		return True
 	return False
+
+
+def includeRedirects(pages: set[str], redirects_path: str) -> set[str]:
+	# assumes no double redirects
+	for red in parseRedirects.redirectsGen(redirects_path):
+		if red.dstTitle in pages:
+			pages.add(red.srcTitle)
+	return pages
 
 if __name__ == '__main__':
 	main()
