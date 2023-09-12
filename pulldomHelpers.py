@@ -21,6 +21,7 @@ def getText(node: xml.dom.minidom.Element) -> str:
 		return ''
 
 def getPageDescendantText(path: str, tags: list[str]) -> Iterable[dict[str, str]]:
+	'''The order of the tags is very important; pages will be silently skipped if they are in the wrong order.'''
 	doc = xml.dom.pulldom.parse(path)
 	try:
 		while True:
