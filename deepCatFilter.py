@@ -157,7 +157,7 @@ def findSenseLines(terms: set[str], pages_path: str, verbose: bool = False) -> d
 			count += 1
 	return sense_lines
 
-def checkTerm(term: set[str], sense_lines: dict[str, list[str]], form_of_temps: set[str], exclude_labels: set[str], exclude_temps: set[str], time_to_live: int = 4) -> bool:
+def checkTerm(term: str, sense_lines: dict[str, list[str]], form_of_temps: set[str], exclude_labels: set[str], exclude_temps: set[str], time_to_live: int = 4) -> bool:
 	# if after following a few links we still haven't found a lemma, assume we are in a loop and accept the term
 	if time_to_live <= 0:
 		return True
@@ -165,8 +165,8 @@ def checkTerm(term: set[str], sense_lines: dict[str, list[str]], form_of_temps: 
 		temps = wikitextparser.parse(line).templates
 		try:
 			form_of_temp = next(t for t in temps if t.normal_name() in form_of_temps)
-			term = (form_of_temp.get_arg('2') or form_of_temp.get_arg('1')).value
-			if term not in sense_lines or not checkTerm(term, sense_lines, form_of_temps, exclude_labels, exclude_temps, time_to_live - 1):
+			main_form = (form_of_temp.get_arg('2') or form_of_temp.get_arg('1')).value
+			if main_form not in sense_lines or not checkTerm(main_form, sense_lines, form_of_temps, exclude_labels, exclude_temps, time_to_live - 1):
 				continue
 		except StopIteration:
 			pass
