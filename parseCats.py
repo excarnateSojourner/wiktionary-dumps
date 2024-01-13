@@ -51,7 +51,7 @@ def main():
 						catTitle = row[1].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
 						pageId = int(row[0])
 						try:
-							print(f'{catIds[catTitle]},{catTitle},{pageId},{pageTitles[pageId]}', file=outFile)
+							print(f'{catIds[catTitle]}|{catTitle}|{pageId}|{pageTitles[pageId]}', file=outFile)
 						except KeyError:
 							# a category may not be found if it is in use but has no page
 							pass
@@ -61,7 +61,7 @@ def main():
 def catsGen(categories_path: str) -> Iterator[CatData]:
 	with open(categories_path, encoding='utf-8') as catsFile:
 		for line in catsFile:
-			fields = (line[:-1].split(',', maxsplit=3))
+			fields = (line[:-1].split('|', maxsplit=3))
 			yield CatData(catId=int(fields[0]), catTitle=fields[1], pageId=int(fields[2]), pageTitle=fields[3])
 
 if __name__ == '__main__':

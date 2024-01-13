@@ -56,12 +56,12 @@ To make it easier for other programs to work with Wiktionary's categories.
 1. A CSV file containing parsed stubs, as produced by `parseStubs.py`.
 
 #### Output
-A CSV file containing a line for every category-page association. Each line consists of the category ID, the category name (without the "Category:" prefix), the page ID, and the page name (with any appropriate namespace prefix). As an example, the first few lines created from a data dump made in 2022-06 were:
+A CSV file containing a line for every category-page association. Each line consists of the category ID, the category name (without the "Category:" prefix), the page ID, and the page name (with any appropriate namespace prefix), separated by vertical bars. As an example, the first few lines created from a data dump made in 2022-06 were:
 
 ```csv
-227906,Wiktionary beginners,6,Wiktionary:Welcome, newcomers
-303568,Wiktionary pages with shortcuts,6,Wiktionary:Welcome, newcomers
-90507,Wiktionary,8,Wiktionary:Text of the GNU Free Documentation License
+227906|Wiktionary beginners|6|Wiktionary:Welcome, newcomers
+303568|Wiktionary pages with shortcuts|6|Wiktionary:Welcome, newcomers
+90507|Wiktionary|8|Wiktionary:Text of the GNU Free Documentation License
 ```
 
 ### `deepCatFilter.py`
