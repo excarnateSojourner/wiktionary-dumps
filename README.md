@@ -28,16 +28,24 @@ To take a pages file containing mainspace pages (in other words the actual dicti
 #### Output
 Another pages file containing only the pages that had a section for the language specified, with all other language sections omitted.
 
-### Title, namespace, ID filter
+### `parseStubs.py`
 #### Purpose
-To create trimmed-down copies of pages files that only contain the titles, namespaces, and IDs of the original.
+To convert a pages file such as stub-meta-current.xml to a CSV file containing the ids, Wiktionary namespaces, and titles of Wiktionary pages.
 
-#### Implementation
-Rather than a Python program, I just used grep to achieve this:
-```bash
-grep -E '^\s{,6}<(mediawiki|/mediawiki>|namespaces|/namespaces>|namespace|page|/page>|title|ns|id)' input.xml > output.xml
+#### File inputs
+1. The pages file containing stubs (i.e. ids, namespaces, and titles). The best file for this in the dumps is `stub-meta-current.xml`.
+
+#### Output
+A CSV file in which each line consists of the id, namespace, and title of a page, separated by vertical bars (`|`). For example, here are a few of the first lines created from a data dump made in 2024-01 (with some similar lines removed):
+```csv
+6|4|Wiktionary:Welcome, newcomers
+9|2|User:Sjc~enwiktionary
+12|4|Wiktionary:What Wiktionary is not
+15|3|User talk:Merphant
+16|0|dictionary
+19|0|free
+20|0|thesaurus
 ```
-I've only tested this on [Debian](https://en.wikipedia.org/wiki/Debian).
 
 ### `parseCats.py`
 #### Purpose
@@ -45,7 +53,7 @@ To make it easier for other programs to work with Wiktionary's categories.
 
 #### File inputs
 1. The SQL file named "categorylinks.sql" in the data dumps.
-1. An XML file containing title / id associations for all pages (including categories). The file named "pages-meta-current.xml" in the dumps fulfills these criteria, but mostly consists of other data that would be irrelevant here. It is suggested one use the title, namespace, id filter on "pages-meta-current.xml" and give the result to `parseCats.py`.
+1. A CSV file containing parsed stubs, as produced by `parseStubs.py`.
 
 #### Output
 A CSV file containing a line for every category-page association. Each line consists of the category ID, the category name (without the "Category:" prefix), the page ID, and the page name (with any appropriate namespace prefix). As an example, the first few lines created from a data dump made in 2022-06 were:
