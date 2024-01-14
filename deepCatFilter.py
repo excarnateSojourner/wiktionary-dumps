@@ -13,23 +13,23 @@ import pulldomHelpers
 PAGES_VERBOSITY_FACTOR = 10 ** 4
 CAT_PREFIX = 'Category:'
 TEMP_PREFIX = 'Template:'
-# The id of Category:Form-of templates
+# The ID of Category:Form-of templates
 FORM_OF_TEMP_CAT_ID = 3991887
 LABEL_TEMPS = {'label', 'lb', 'lbl'}
 
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('categories_path', help='Path of the parsed categories file that should be used to enumerate subcategories of explicitly mentioned categories.')
-	parser.add_argument('output_path', help='Path of the file to write the ids of pages in the categories to.')
-	parser.add_argument('-i', '--include', required=True, nargs='+', default=[], help='Categories to include. These can either all be given as page titles, in which case --stubs-path is required to convert them to page ids, or they can all be given as page ids (in which case --stubs-path must *not* be given).')
+	parser.add_argument('output_path', help='Path of the file to write the IDs of pages in the categories to.')
+	parser.add_argument('-i', '--include', required=True, nargs='+', default=[], help='Categories to include. These can either all be given as page titles, in which case --stubs-path is required to convert them to page ids, or they can all be given as page IDs (in which case --stubs-path must *not* be given).')
 	parser.add_argument('-e', '--exclude', nargs='+', default=[], help='Categories to exclude (overriding includes).')
-	parser.add_argument('-s', '--stubs-path', help='Path of the CSV file (as produced by parseStubs.py) containing page ids and titles. If given, this indicates that the categories to include and exclude have been specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
+	parser.add_argument('-s', '--stubs-path', help='Path of the CSV file (as produced by parseStubs.py) containing page IDs and titles. If given, this indicates that the categories to include and exclude have been specified using their IDs rather than their names. Specifying IDs removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. Zero means just immediate children, one means children and grandchildren, etc. A negative value means no limit.')
 	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
 	parser.add_argument('-r', '--redirects-path', help='The path of the CSV redirects file produced by parseRedirects.py. Ignored if --pages-path is not given.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
-	parser.add_argument('-l', '--label-lang', help='The Wiktionary language code (usually the ISO 639 code) of the language for which to exclude labels. Ignored if --exclude-labels is not also given.')
+	parser.add_argument('-l', '--label-lang', default='en', help='The Wiktionary language code (usually the ISO 639 code) of the language for which to exclude labels. Ignored if --exclude-labels is not also given.')
 	parser.add_argument('-x', '--exclude-labels', nargs='+', default=[], help='Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
 	parser.add_argument('-m', '--exclude-temps', nargs='+', default=[], help='If a given template given here is used in a sense of a term, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.)')
 	parser.add_argument('-v', '--verbose', action='store_true')
@@ -69,39 +69,50 @@ def main():
 
 def catFilter(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
 	if verbose:
+		print('Reading the contents of all categories...')
+	cat_members = collections.defaultdict(list)
+	for cat_data in parseCats.catsGen(categories_path):
+		cat_members[cat_data.catId].append((cat_data.pageId, cat_data.pageTitle))
+
+	if verbose:
 		print('Looking for pages and subcategories in specified categories:')
 	# collect subcats to process in the next round
 	next_include_cats = set()
 	next_exclude_cats = set()
+	ever_included_cats = include_cats.copy()
+	ever_excluded_cats = exclude_cats.copy()
 	# collect non-cat pages in cats
 	include_pages = set()
 	exclude_pages = set()
 
 	depth = 0
 	while (include_cats or exclude_cats) and (max_depth < 0 or depth <= max_depth):
-		if verbose:
-			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
-		for data in parseCats.catsGen(categories_path):
-			if data.catId in include_cats:
-				if data.pageTitle.startswith(CAT_PREFIX):
-					if verbose and data.pageId not in next_include_cats:
-						print(f'including "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
-					next_include_cats.add(data.pageId)
+		for cat_id in include_cats:
+			for pageId, pageTitle in cat_members[cat_id]:
+				if pageTitle.startswith(CAT_PREFIX):
+					if pageId not in ever_included_cats:
+						next_include_cats.add(pageId)
+						ever_included_cats.add(pageId)
+						if verbose:
+							print(f'+ {pageTitle.removeprefix(CAT_PREFIX)}')
 				# a page to include
 				elif return_titles:
-					include_pages.add(data.pageTitle)
+					include_pages.add(pageTitle)
 				else:
-					include_pages.add(data.pageId)
-			if data.catId in exclude_cats:
-				if data.pageTitle.startswith(CAT_PREFIX):
-					if verbose and data.pageId not in next_exclude_cats:
-						print(f'excluding "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
-					next_exclude_cats.add(data.pageId)
+					include_pages.add(pageId)
+		for cat_id in exclude_cats:
+			for pageId, pageTitle in cat_members[cat_id]:
+				if pageTitle.startswith(CAT_PREFIX):
+					if pageId not in ever_excluded_cats:
+						next_exclude_cats.add(pageId)
+						ever_excluded_cats.add(pageId)
+						if verbose:
+							print(f'- {pageTitle.removeprefix(CAT_PREFIX)}')
 				# a page to exclude
 				elif return_titles:
-					exclude_pages.add(data.pageTitle)
+					exclude_pages.add(pageTitle)
 				else:
-					exclude_pages.add(data.pageId)
+					exclude_pages.add(pageId)
 		include_cats = next_include_cats
 		exclude_cats = next_exclude_cats
 		next_include_cats = set()
@@ -143,7 +154,7 @@ def findSenseLines(terms: set[str], pages_path: str, verbose: bool = False) -> d
 
 	if verbose:
 		print('\nLoading pages data:')
-	for count, page in enumerate(pulldomHelpers.getPageDescendantText(pages_path)):
+	for count, page in enumerate(pulldomHelpers.getPageDescendantText(pages_path, ['title', 'text'])):
 		if page['title'] in terms:
 			sense_lines[page['title']] = [line for line in page['text'].splitlines() if line.startswith('# ')]
 		if verbose and count % PAGES_VERBOSITY_FACTOR == 0:
