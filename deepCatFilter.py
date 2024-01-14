@@ -7,6 +7,7 @@ import wikitextparser
 
 import parseCats
 import parseRedirects
+import parseStubs
 import pulldomHelpers
 
 PAGES_VERBOSITY_FACTOR = 10 ** 4
@@ -20,9 +21,9 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('categories_path', help='Path of the parsed categories file that should be used to enumerate subcategories of explicitly mentioned categories.')
 	parser.add_argument('output_path', help='Path of the file to write the ids of pages in the categories to.')
-	parser.add_argument('-i', '--include', required=True, nargs='+', default=[], help='Categories to include.')
+	parser.add_argument('-i', '--include', required=True, nargs='+', default=[], help='Categories to include. These can either all be given as page titles, in which case --stubs-path is required to convert them to page ids, or they can all be given as page ids (in which case --stubs-path must *not* be given).')
 	parser.add_argument('-e', '--exclude', nargs='+', default=[], help='Categories to exclude (overriding includes).')
-	parser.add_argument('-n', '--input-ids', action='store_true', help='Indicates that the categories to include and exclude are specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
+	parser.add_argument('-s', '--stubs-path', help='Path of the CSV file (as produced by parseStubs.py) containing page ids and titles. If given, this indicates that the categories to include and exclude have been specified using their ids rather than their names. Specifying ids removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. Zero means just immediate children, one means children and grandchildren, etc. A negative value means no limit.')
 	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
@@ -34,28 +35,29 @@ def main():
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
-	if args.input_ids:
-		include_cats = set(int(i) for i in args.include)
-		exclude_cats = set(int(i) for i in args.exclude)
-	else:
+	if args.stubs_path:
 		if args.verbose:
 			print('Translating category names to ids...')
-		initial_includes = set(c.removeprefix(CAT_PREFIX) for c in args.include)
-		initial_excludes = set(c.removeprefix(CAT_PREFIX) for c in args.exclude)
+		initial_includes = set((c if c.startswith(CAT_PREFIX) else CAT_PREFIX + c) for c in args.include)
+		initial_excludes = set((c if c.startswith(CAT_PREFIX) else CAT_PREFIX + c) for c in args.exclude)
 		include_cats = set()
 		exclude_cats = set()
-		for data in parseCats.catsGen(args.categories_path):
-			if data.catTitle in initial_includes:
-				include_cats.add(data.catId)
-				initial_includes.remove(data.catTitle)
-			if data.catTitle in initial_excludes:
-				exclude_cats.add(data.catId)
-				initial_excludes.remove(data.catTitle)
+
+		for stub in parseStubs.stubsGen(args.stubs_path):
+			if stub.title in initial_includes:
+				include_cats.add(stub.id)
+				initial_includes.remove(stub.title)
+			if stub.title in initial_excludes:
+				exclude_cats.add(stub.id)
+				initial_excludes.remove(stub.title)
 		if initial_includes or initial_excludes:
-			print('I was unable to find any pages in the following categories. This either means they do not exist (check your spelling) or they are empty.')
+			print('I was unable to find pages for the following categories. This either means they do not exist (check your spelling) or the category page has not been created.')
 			print(', '.join(initial_includes | initial_excludes))
 		print('If you want to include and exclude the same sets of categories later, and you want to provide their IDs instead of titles (so I do not have to translate to IDs for you), here are the IDs formatted as command-line arguments:')
-		print('-i ' + ' '.join(str(i) for i in include_cats) + ' -e ' + ' '.join(str(e) for e in exclude_cats) + ' -n')
+		print('-i ' + ' '.join(str(i) for i in include_cats) + ' -e ' + ' '.join(str(e) for e in exclude_cats))
+	else:
+		include_cats = set(int(i) for i in args.include)
+		exclude_cats = set(int(i) for i in args.exclude)
 
 	terms = catFilter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 	if args.pages_path:
