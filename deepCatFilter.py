@@ -82,9 +82,9 @@ def catFilter(categories_path: str, include_cats: set[int], exclude_cats: set[in
 		for data in parseCats.catsGen(categories_path):
 			if data.catId in include_cats:
 				if data.pageTitle.startswith(CAT_PREFIX):
-					next_include_cats.add(data.pageId)
-					if verbose:
+					if verbose and data.pageId not in next_include_cats:
 						print(f'including "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
+					next_include_cats.add(data.pageId)
 				# a page to include
 				elif return_titles:
 					include_pages.add(data.pageTitle)
@@ -92,9 +92,9 @@ def catFilter(categories_path: str, include_cats: set[int], exclude_cats: set[in
 					include_pages.add(data.pageId)
 			if data.catId in exclude_cats:
 				if data.pageTitle.startswith(CAT_PREFIX):
-					next_exclude_cats.add(data.pageId)
-					if verbose:
+					if verbose and data.pageId not in next_exclude_cats:
 						print(f'excluding "{data.pageTitle.removeprefix(CAT_PREFIX)}"')
+					next_exclude_cats.add(data.pageId)
 				# a page to exclude
 				elif return_titles:
 					exclude_pages.add(data.pageTitle)
@@ -137,24 +137,15 @@ def entryTextFilter(terms: set[str], categories_path: str, pages_path: str, redi
 	return terms
 
 def findSenseLines(terms: set[str], pages_path: str, verbose: bool = False) -> dict[str, list[str]]:
-	doc = xml.dom.pulldom.parse(pages_path)
 	sense_lines = {}
 
 	if verbose:
 		print('\nLoading pages data:')
-	count = 0
-	for event, node in doc:
-		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'title':
-			doc.expandNode(node)
-			term = pulldomHelpers.getText(node)
-			if term in terms:
-				text_node = next(n for e, n in doc if e == xml.dom.pulldom.START_ELEMENT and n.tagName == 'text')
-				doc.expandNode(text_node)
-				sense_lines[term] = [li for li in pulldomHelpers.getText(text_node).splitlines() if li.startswith('# ')]
-
-			if verbose and count % PAGES_VERBOSITY_FACTOR == 0:
-				print(count)
-			count += 1
+	for count, page in enumerate(pulldomHelpers.getPageDescendantText(pages_path)):
+		if page['title'] in terms:
+			sense_lines[page['title']] = [line for line in page['text'].splitlines() if line.startswith('# ')]
+		if verbose and count % PAGES_VERBOSITY_FACTOR == 0:
+			print(count)
 	return sense_lines
 
 def checkTerm(term: str, sense_lines: dict[str, list[str]], form_of_temps: set[str], exclude_labels: set[str], exclude_temps: set[str], time_to_live: int = 4) -> bool:
