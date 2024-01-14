@@ -138,7 +138,7 @@ def entryTextFilter(terms: set[str], categories_path: str, pages_path: str, redi
 		form_of_temps = catFilter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
 
 	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in includeRedirects(form_of_temps, redirects_path)}
-	exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in includeRedirects({f'{TEMP_PREFIX}:{temp}' for temp in exclude_temps}, redirects_path)}
+	exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in includeRedirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
 	sense_lines = findSenseLines(terms, pages_path, verbose)
 
 	if verbose:
