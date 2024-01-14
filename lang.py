@@ -35,7 +35,6 @@ def main():
 					parsed = wikitextparser.parse(text)
 					try:
 						targetSection = next(section for section in parsed.get_sections(level=2) if section.title == args.language)
-						# print(targetSection.contents)
 						targetText = f'{parsed.get_sections(level=0)[0]}=={args.language}==\n{targetSection.contents}'
 						targetNode = xml.dom.minidom.Text()
 						targetNode.replaceWholeText(targetText)
