@@ -4,7 +4,7 @@ import re
 from typing import Iterator
 import xml.dom.pulldom
 
-import pulldomHelpers
+import pulldom_helpers
 
 PAGES_VERBOSE_FACTOR = 10 ** 4
 SQL_VERBOSE_FACTOR = 10 ** 6
@@ -28,8 +28,8 @@ def main():
 	page_ids_to_titles = {}
 	pages_count = 0
 	if args.pages_titles_path.endswith('.sql'):
-		for page in parseSql(args.pages_titles_path, first_n=3):
-			page_title = cleanPageTitle(page[2])
+		for page in parse_sql(args.pages_titles_path, first_n=3):
+			page_title = clean_page_title(page[2])
 			page_ids_to_titles[page[0]] = page_title
 			if int(page[1]) == TEMPLATE_NAMESPACE:
 				temp_titles_to_ids[page_title.removeprefix(TEMPLATE_PREFIX)] = page[0]
@@ -38,7 +38,7 @@ def main():
 					print(pages_count)
 				pages_count += 1
 	elif args.pages_titles_path.endswith('.xml'):
-		for page in pulldomHelpers.getPageDescendantText(args.pages_titles_path, ['title', 'ns', 'id']):
+		for page in pulldom_helpers.get_page_descendant_text(args.pages_titles_path, ['title', 'ns', 'id']):
 			page_ids_to_titles[page['id']] = page['title']
 			if int(page['ns']) == TEMPLATE_NAMESPACE:
 				temp_titles_to_ids[page['title'].removeprefix(TEMPLATE_PREFIX)] = page['id']
@@ -52,16 +52,16 @@ def main():
 	if args.verbose:
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
-	for link_targets_count, link_target in enumerate(parseSql(args.link_targets_path)):
-		link_targets_to_temp_titles[link_target[0]] = (cleanPageTitle(link_target[2]), int(link_target[1]) == TEMPLATE_NAMESPACE)
+	for link_targets_count, link_target in enumerate(parse_sql(args.link_targets_path)):
+		link_targets_to_temp_titles[link_target[0]] = (clean_page_title(link_target[2]), int(link_target[1]) == TEMPLATE_NAMESPACE)
 		if args.verbose and link_targets_count % SQL_VERBOSE_FACTOR == 0:
 			print(link_targets_count)
 
 	if args.verbose:
 		print(f'Loaded {len(page_ids_to_titles)} page titles and {len(link_targets_to_temp_titles)} temp titles.')
 		print('Processing categories (SQL):')
-	with open(args.parsed_path, 'w', encoding='utf-8') as outFile:
-		for template_links_count, link in enumerate(parseSql(args.template_links_path)):
+	with open(args.parsed_path, 'w', encoding='utf-8') as out_file:
+		for template_links_count, link in enumerate(parse_sql(args.template_links_path)):
 			if args.verbose and template_links_count % SQL_VERBOSE_FACTOR * 10 == 0:
 				print(template_links_count)
 			try:
@@ -82,15 +82,15 @@ def main():
 			except KeyError:
 				print(f'[{template_links_count}:] Page with id {page_id} not found in page.sql.')
 				continue
-			print(f'{temp_id},{temp_title},{page_id},{page_title}', file=outFile)
+			print(f'{temp_id},{temp_title},{page_id},{page_title}', file=out_file)
 
-def tempsGen(templates_path: str) -> Iterator[TempData]:
+def temps_gen(templates_path: str) -> Iterator[TempData]:
 	with open(templates_path, encoding='utf-8') as temps_file:
 		for line in temps_file:
 			fields = (line[:-1].split(',', maxsplit=3))
 			yield TempData(temp_id=int(fields[0]), temp_title=fields[1], page_id=int(fields[2]), page_title=fields[3])
 
-def parseSql(path: str, first_n: int = -1) -> Iterator[tuple[str]]:
+def parse_sql(path: str, first_n: int = -1) -> Iterator[tuple[str]]:
 	with open(path, encoding='utf-8', errors='ignore') as sql_file:
 		for line in sql_file:
 			if line.startswith('INSERT INTO '):
@@ -106,7 +106,7 @@ def parseSql(path: str, first_n: int = -1) -> Iterator[tuple[str]]:
 				for row in rows:
 					yield row
 
-def cleanPageTitle(title: str) -> str:
+def clean_page_title(title: str) -> str:
 	return title.replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
 
 if __name__ == '__main__':

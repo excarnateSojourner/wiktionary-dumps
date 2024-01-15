@@ -2,7 +2,7 @@ import argparse
 import re
 import xml.dom.pulldom
 
-import pulldomHelpers
+import pulldom_helpers
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -11,17 +11,17 @@ def main():
 	args = parser.parse_args()
 
 	doc = xml.dom.pulldom.parse(args.pages_path)
-	with open(args.output_path, 'w', encoding='utf-8') as outFile:
-		outFile.write('== List ==\n{{col4|en\n')
+	with open(args.output_path, 'w', encoding='utf-8') as out_file:
+		out_file.write('== List ==\n{{col4|en\n')
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 				doc.expandNode(node)
-				for line in pulldomHelpers.getDescendantText(node, 'text').splitlines():
+				for line in pulldom_helpers.get_descendant_text(node, 'text').splitlines():
 					if re.match(r'\s*\* {{rhymes\|en\|', line) and not re.search(r'\|s\d*=\d+', line):
-						title = pulldomHelpers.getDescendantText(node, 'title')
-						outFile.write(f'| {title}\n')
+						title = pulldom_helpers.get_descendant_text(node, 'title')
+						out_file.write(f'| {title}\n')
 						break
-		outFile.write('|sort=0|collapse=0}}')
+		out_file.write('|sort=0|collapse=0}}')
 
 if __name__ == '__main__':
 	main()

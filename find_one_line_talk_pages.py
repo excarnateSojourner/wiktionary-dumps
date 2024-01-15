@@ -2,7 +2,7 @@ import argparse
 import re
 import xml.dom.pulldom
 
-import pulldomHelpers
+import pulldom_helpers
 
 VERBOSE_FACTOR = 10 ** 4
 TALK_NAMESPACE = 1
@@ -19,30 +19,30 @@ def main():
 
 	if args.verbose:
 		print('Reading mainspace English titles...')
-	englishTitles = set()
+	english_titles = set()
 	mainspace_doc = xml.dom.pulldom.parse(args.mainspace_pages_path)
 	for event, node in mainspace_doc:
 		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'title':
 			mainspace_doc.expandNode(node)
 			node.normalize()
-			englishTitles.add(node.firstChild.data)
+			english_titles.add(node.firstChild.data)
 
 	if args.verbose:
 		print('Reading talk pages...')
 	count = 0
 	talk_doc = xml.dom.pulldom.parse(args.talk_pages_path)
-	with open(args.output_path, 'w', encoding='utf-8') as outFile:
+	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for event, node in talk_doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 				talk_doc.expandNode(node)
-				title = pulldomHelpers.getDescendantText(node, 'title')
-				timestamp = pulldomHelpers.getDescendantText(node, 'timestamp')
-				if title.removeprefix(TALK_PREFIX) in englishTitles and timestamp >= args.start_date:
-					text = pulldomHelpers.getDescendantText(node, 'text')
+				title = pulldom_helpers.get_descendant_text(node, 'title')
+				timestamp = pulldom_helpers.get_descendant_text(node, 'timestamp')
+				if title.removeprefix(TALK_PREFIX) in english_titles and timestamp >= args.start_date:
+					text = pulldom_helpers.get_descendant_text(node, 'text')
 					if len(text.split('\n', maxsplit=1)) == 1:
 						mat = re.search('\W(2\d{3})\W.{,10}?$', text)
 						if mat and mat[1] >= args.start_date[:4]:
-							print(f'* [[{title}]]', file=outFile)
+							print(f'* [[{title}]]', file=out_file)
 				if args.verbose and count % VERBOSE_FACTOR == 0:
 					print(count)
 				count += 1

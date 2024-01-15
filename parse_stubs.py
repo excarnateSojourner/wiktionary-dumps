@@ -1,7 +1,7 @@
 import argparse
 import collections
 
-import pulldomHelpers
+import pulldom_helpers
 
 VERBOSITY_FACTOR = 10 ** 5
 
@@ -15,14 +15,14 @@ def main():
 	args = parser.parse_args()
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for i, pageData in enumerate(pulldomHelpers.getPageDescendantText(args.pages_path, ['title', 'ns', 'id'])):
-			page = Stub(pageData['id'], pageData['ns'], pageData['title'])
+		for i, page_data in enumerate(pulldom_helpers.get_page_descendant_text(args.pages_path, ['title', 'ns', 'id'])):
+			page = Stub(page_data['id'], page_data['ns'], page_data['title'])
 			out_file.write(f'{page.id}|{page.ns}|{page.title}\n')
 			if args.verbose and i % VERBOSITY_FACTOR == 0:
 				print(i)
 
 
-def stubsGen(stubs_path):
+def stubs_gen(stubs_path):
 	with open(stubs_path, encoding='utf-8') as stubs_file:
 		for line in stubs_file:
 			id_, ns, title = line[:-1].split('|', maxsplit=2)

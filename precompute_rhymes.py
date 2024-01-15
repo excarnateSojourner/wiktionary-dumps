@@ -7,8 +7,8 @@ import subprocess
 import xml.dom
 import xml.dom.pulldom
 
-import parseCats
-import pulldomHelpers
+import parse_cats
+import pulldom_helpers
 
 # English 2-syllable words
 INCLUDE_CATS = {5834597}
@@ -29,7 +29,7 @@ def main():
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-p', '--pages-path', required=True, help='The path of an XML file containing MediaWiki page text to search through.')
-	parser.add_argument('-c', '--categories-path', help='The path of a CSV file containing category associations, as produced by parseCats.py.')
+	parser.add_argument('-c', '--categories-path', help='The path of a CSV file containing category associations, as produced by parse_cats.py.')
 	parser.add_argument('-r', '--prons-path', required=True, help='The path of a text file containing all English pronunciations.')
 	parser.add_argument('-o', '--output-path', required=True, help='The path of a MediaWiki file to write the words lacking rhymes to. They will be automatically formatted as links listed in five columns. This file will be created if it does not exist, and *overwritten without warning* if it does.')
 	parser.add_argument('-w', '--word-cache-path', help='The path of a text file in which to cache the contents of categories relevant to finding words without rhymes. (It will be created if it does not exist.)')
@@ -41,86 +41,86 @@ def main():
 	if not args.categories_path and not args.word_cache_path:
 		raise ValueError('At least one of --category-path (-c) and --word-cache-path (-w) must be provided.')
 
-	words = findRhymelessWords(args)
+	words = find_rhymeless_words(args)
 
-	with open(args.output_path, 'w', encoding='utf-8') as outFile:
-		print('{|class="wikitable"', '!Word', '!Suggested template', '!Rhymes', '!Rhyming pronunciation count', '!Rhyming pronunciation examples', '|-', sep='\n', file=outFile)
+	with open(args.output_path, 'w', encoding='utf-8') as out_file:
+		print('{|class="wikitable"', '!Word', '!Suggested template', '!Rhymes', '!Rhyming pronunciation count', '!Rhyming pronunciation examples', '|-', sep='\n', file=out_file)
 		for word, prons in words:
-			rhymeSiblings = {}
+			rhyme_siblings = {}
 			try:
-				rhymes = pronsToRhymes(prons)
+				rhymes = prons_to_rhymes(prons)
 			except ValueError:
-				writeTableRow(word, {}, outFile)
+				write_table_row(word, {}, out_file)
 				continue
 			for rhyme in rhymes:
-				siblings = findSiblings(rhyme, args)
+				siblings = find_siblings(rhyme, args)
 				if len(siblings) > 1:
-					rhymeSiblings[rhyme] = (len(siblings), siblings[:args.example_count])
-			if rhymeSiblings:
-				writeTableRow(word, rhymeSiblings, outFile)
-		print('|}', file=outFile)
+					rhyme_siblings[rhyme] = (len(siblings), siblings[:args.example_count])
+			if rhyme_siblings:
+				write_table_row(word, rhyme_siblings, out_file)
+		print('|}', file=out_file)
 
-def findRhymelessWords(args):
-	catedWords = findCategorizedWords(args)
+def find_rhymeless_words(args):
+	catted_words = find_categorized_words(args)
 	doc = xml.dom.pulldom.parse(args.pages_path)
 	for event, node in doc:
 		if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
 			doc.expandNode(node)
-			pageId = int(pulldomHelpers.getDescendantText(node, 'id'))
-			if args.start_id and pageId < args.start_id:
-				if args.verbose and pageId % SKIPPING_VERBOSE_FACTOR == 0:
-					print(f'Skipping ID {pageId}...')
+			page_id = int(pulldom_helpers.get_descendant_text(node, 'id'))
+			if args.start_id and page_id < args.start_id:
+				if args.verbose and page_id % SKIPPING_VERBOSE_FACTOR == 0:
+					print(f'Skipping ID {page_id}...')
 				continue
-			elif args.verbose and pageId % MAIN_VERBOSE_FACTOR == 0:
-				print(f'Processing ID {pageId}...')
-			title = pulldomHelpers.getDescendantText(node, 'title')
-			text = pulldomHelpers.getDescendantText(node, 'text')
-			if pageId in catedWords and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):
+			elif args.verbose and page_id % MAIN_VERBOSE_FACTOR == 0:
+				print(f'Processing ID {page_id}...')
+			title = pulldom_helpers.get_descendant_text(node, 'title')
+			text = pulldom_helpers.get_descendant_text(node, 'text')
+			if page_id in catted_words and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):
 				prons = []
-				for pronSet in re.findall('{{IPA\|en\|(.*?)}}', text, flags=re.IGNORECASE):
-					prons.extend(pronSet.split('|'))
+				for pron_set in re.findall('{{IPA\|en\|(.*?)}}', text, flags=re.IGNORECASE):
+					prons.extend(pron_set.split('|'))
 				yield (title, prons)
 
-def findSiblings(rhyme, args):
+def find_siblings(rhyme, args):
 	process = subprocess.run(['grep', '-P', f'(ˈ|/[ˈ{CONSONANTS}]*){rhyme}/', args.prons_path], capture_output=True)
 	return process.stdout.decode().splitlines()
 
-def writeTableRow(word, rhymeSiblings, outFile):
-	def printRow(*strs, **kwargs):
-		print(*(f'|{s}' for s in strs), sep='\n', file=outFile, **kwargs)
+def write_table_row(word, rhyme_siblings, out_file):
+	def print_row(*strs, **kwargs):
+		print(*(f'|{s}' for s in strs), sep='\n', file=out_file, **kwargs)
 
-	if rhymeSiblings:
-		if len(rhymeSiblings) == 1:
-			printRow(f'{{{{l|en|{word}}}}}')
-			printRow('<code><nowiki>* {{rhymes|en|' + '|'.join(rhymeSiblings) + '|s=2}}</nowiki></code>')
+	if rhyme_siblings:
+		if len(rhyme_siblings) == 1:
+			print_row(f'{{{{l|en|{word}}}}}')
+			print_row('<code><nowiki>* {{rhymes|en|' + '|'.join(rhyme_siblings) + '|s=2}}</nowiki></code>')
 		else:
-			rowspan = f'rowspan="{len(rhymeSiblings)}"|'
-			printRow(f'{rowspan}{{{{l|en|{word}}}}}')
-			printRow(rowspan + '<code><nowiki>* {{rhymes|en|' + '|'.join(rhymeSiblings) + '|s=2}}</nowiki></code>')
-		for rhyme, siblings in rhymeSiblings.items():
-			printRow('{{IPAchar|/-' + rhyme + '/}}')
-			printRow(siblings[0])
-			printRow('; '.join('{{IPAchar|' + example + '}}' for example in siblings[1]))
-			printRow('-')
+			rowspan = f'rowspan="{len(rhyme_siblings)}"|'
+			print_row(f'{rowspan}{{{{l|en|{word}}}}}')
+			print_row(rowspan + '<code><nowiki>* {{rhymes|en|' + '|'.join(rhyme_siblings) + '|s=2}}</nowiki></code>')
+		for rhyme, siblings in rhyme_siblings.items():
+			print_row('{{IPAchar|/-' + rhyme + '/}}')
+			print_row(siblings[0])
+			print_row('; '.join('{{IPAchar|' + example + '}}' for example in siblings[1]))
+			print_row('-')
 	else:
-		printRow(f'{{{{l|en|{word}}}}}')
-		printRow('\n|\n|\n|\n|-')
+		print_row(f'{{{{l|en|{word}}}}}')
+		print_row('\n|\n|\n|\n|-')
 
-def pronsToRhymes (prons):
+def prons_to_rhymes (prons):
 	'''Extracts the corresponding rhyme for each of the IPA pronunciations in prons, and:
 	* combines rhymes that differ only in their inclusion of an 'ɹ';
 	* expands rhymes containing non-(ɹ) parentheticals into multiple rhymes;
 	* deduplicates the rhymes.'''
-	phonemicProns = []
+	phonemic_prons = []
 	for i, pron in enumerate(prons):
 		if not (pron.startswith('[') or pron.endswith(']')):
 			if re.fullmatch(STANDARD_PRON, pron):
 				pron = pron.replace('ɚ', 'ə(ɹ)')
 				pron = pron.replace('ɝ', 'ɜ(ɹ)')
-				phonemicProns.append(pron)
+				phonemic_prons.append(pron)
 
 	rhymes = []
-	for pron in phonemicProns:
+	for pron in phonemic_prons:
 		# find primary stress indicated
 		try:
 			rhymes.append(re.search('ˈ' + PRON_TO_RHYME, pron)[1])
@@ -128,30 +128,30 @@ def pronsToRhymes (prons):
 		except TypeError:
 			pass
 
-	removeNonRhymeChars = str.maketrans('', '', NON_RHYME_CHARS)
-	rhymes = [rhyme.translate(removeNonRhymeChars) for rhyme in rhymes]
+	rm_nonrhyme_chars = str.maketrans('', '', NON_RHYME_CHARS)
+	rhymes = [rhyme.translate(rm_nonrhyme_chars) for rhyme in rhymes]
 
 	# deduplicate
 	rhymes = list(dict.fromkeys(rhymes))
 
-	rhymes = combineOnR(rhymes)
-	rhymes = itertools.chain.from_iterable(expandParens(rhyme) for rhyme in rhymes)
+	rhymes = combine_on_r(rhymes)
+	rhymes = itertools.chain.from_iterable(expand_parens(rhyme) for rhyme in rhymes)
 
 	# deduplicate
 	return list(dict.fromkeys(rhymes))
 
-def combineOnR (rhymes):
+def combine_on_r (rhymes):
 	'''Takes a list of rhymes and properly combines rhymes that differ only in their inclusion of 'ɹ' (and possibly a long vowel symbol). If any rhyme has more than one instance of 'ɹ', it is a ValueError.'''
 	combined = []
 
-	def addWithAndWithoutLongVowel(before, after):
+	def add_with_and_without_long_vowel(before, after):
 		combs.append(before + after)
 		if before.endswith('ː'):
 			combs.append(before.rstrip('ː') + after)
 		else:
 			combs.append(before + 'ː' + after)
 
-	def findCombMatch(rhyme0, combs):
+	def find_comb_match(rhyme0, combs):
 		for i, rhyme1 in enumerate(rhymes):
 			if rhyme1:
 				for comb in combs:
@@ -168,25 +168,25 @@ def combineOnR (rhymes):
 	for rhyme0 in rhymes:
 		if rhyme0:
 			# if rhyme0 contains one 'ɹ'
-			if (rCount := rhyme0.count('ɹ')) == 1:
+			if (r_count := rhyme0.count('ɹ')) == 1:
 				before, after = rhyme0.split('ɹ', maxsplit=1)
 				combs = []
 				if before.endswith('(') and after.startswith(')'):
 					before = before[:-1]
 					after = after[1:]
-					addWithAndWithoutLongVowel(before, 'ɹ' + after)
+					add_with_and_without_long_vowel(before, 'ɹ' + after)
 				else:
-					addWithAndWithoutLongVowel(before, '(ɹ)' + after)
-				addWithAndWithoutLongVowel(before, after)
-				melded = findCombMatch(rhyme0, combs)
+					add_with_and_without_long_vowel(before, '(ɹ)' + after)
+				add_with_and_without_long_vowel(before, after)
+				melded = find_comb_match(rhyme0, combs)
 				combined.append(melded if melded else rhyme0)
 			# rhyme0 contains more than one 'ɹ'
-			elif rCount > 1:
+			elif r_count > 1:
 				raise ValueError('One of the rhymes includes more than one instance of /ɹ/.')
 
 	return combined + [rhyme for rhyme in rhymes if rhyme and 'ɹ' not in rhyme]
 
-def expandParens (s):
+def expand_parens (s):
 	'''Return a list of strings containing all combinations of including and excluding each of the parentheticals in s.'''
 	parts = re.split(r'\(([^ɹ])\)', s, maxsplit=1)
 	# if no parentheticals
@@ -195,33 +195,33 @@ def expandParens (s):
 	# if parenthetical found
 	else:
 		combs = []
-		for comb in expandParens(parts[2]):
+		for comb in expand_parens(parts[2]):
 			combs.append(parts[0] + comb)
 			combs.append(parts[0] + parts[1] + comb)
 		return combs
 
-def findCategorizedWords(args):
+def find_categorized_words(args):
 	if args.word_cache_path and not args.refresh_cache:
 		try:
-			with open(args.word_cache_path, encoding='utf-8') as cacheFile:
-				return set(int(line[:-1]) for line in cacheFile)
+			with open(args.word_cache_path, encoding='utf-8') as cache_file:
+				return set(int(line[:-1]) for line in cache_file)
 		except FileNotFoundError:
 			pass
 
 	# cache is missing or outdated, so we need to refresh it
-	includeWords = set()
-	excludeWords = set()
-	for data in parseCats.catsGen(args.categories_path):
-		if data.catId in INCLUDE_CATS:
-			includeWords.add(data.pageId)
-		elif data.catId in EXCLUDE_CATS:
-			excludeWords.add(data.pageId)
-	words = includeWords - excludeWords
+	include_words = set()
+	exclude_words = set()
+	for data in parse_cats.cats_gen(args.categories_path):
+		if data.cat_id in INCLUDE_CATS:
+			include_words.add(data.page_id)
+		elif data.cat_id in EXCLUDE_CATS:
+			exclude_words.add(data.page_id)
+	words = include_words - exclude_words
 
 	if args.word_cache_path:
-		with open(args.word_cache_path, 'w', encoding='utf-8') as cacheFile:
+		with open(args.word_cache_path, 'w', encoding='utf-8') as cache_file:
 			for word in words:
-				print(word, file=cacheFile)
+				print(word, file=cache_file)
 
 	return words
 
