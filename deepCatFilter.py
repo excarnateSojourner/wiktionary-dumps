@@ -226,13 +226,8 @@ def checkTerm(term: str, sense_lines: dict[str, list[str]], form_of_temps: set[s
 		return True
 	for line in sense_lines[term]:
 		temps = wikitextparser.parse(line).templates
-		try:
-			form_of_temp = next(t for t in temps if t.normal_name() in form_of_temps)
-			main_form = (form_of_temp.get_arg('2') or form_of_temp.get_arg('1')).value
-			if main_form not in sense_lines or not checkTerm(main_form, sense_lines, form_of_temps, exclude_labels, exclude_temps, time_to_live - 1):
-				continue
-		except StopIteration:
-			pass
+		if any(temp.normal_name() in exclude_temps for temp in temps):
+			continue
 		try:
 			label_temp = next(t for t in temps if t.normal_name() in LABEL_TEMPS and t.arguments[0].positional and t.get_arg('1').value == 'en')
 			labels = {a.value for a in label_temp.arguments[1:] if a.positional}
@@ -240,8 +235,13 @@ def checkTerm(term: str, sense_lines: dict[str, list[str]], form_of_temps: set[s
 				continue
 		except StopIteration:
 			pass
-		if any(temp.normal_name() in exclude_temps for temp in temps):
-			continue
+		try:
+			form_of_temp = next(t for t in temps if t.normal_name() in form_of_temps)
+			main_form = (form_of_temp.get_arg('2') or form_of_temp.get_arg('1')).value
+			if main_form not in sense_lines or not checkTerm(main_form, sense_lines, form_of_temps, exclude_labels, exclude_temps, time_to_live - 1):
+				continue
+		except StopIteration:
+			pass
 		return True
 	return False
 
