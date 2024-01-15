@@ -183,12 +183,12 @@ def entry_text_filter(terms: set[str], categories_path: str, pages_path: str, re
 			with open(temps_cache_path, encoding='utf-8') as temps_cache_file:
 				form_of_temps = set(temps_cache_file.read().splitlines())
 		except FileNotFoundError:
-			form_of_temps = cat_filter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
+			form_of_temps = find_form_of_temps(categories_path, args.small_ram)
 			with open(temps_cache_path, 'w', encoding='utf-8') as temps_cache_file:
 				for temp in form_of_temps:
 					print(temp, file=temps_cache_file)
 	else:
-		form_of_temps = cat_filter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
+		form_of_temps = find_form_of_temps(categories_path, args.small_ram)
 
 	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects(form_of_temps, redirects_path)}
 	exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
@@ -201,6 +201,12 @@ def entry_text_filter(terms: set[str], categories_path: str, pages_path: str, re
 			terms.remove(term)
 
 	return terms
+
+def find_form_of_temps(categories_path: str, small_ram: bool =False):
+	if small_ram:
+		return cat_filter_slow(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
+	else:
+		return cat_filter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
 
 def find_sense_lines(terms: set[str], pages_path: str, verbose: bool = False) -> dict[str, list[str]]:
 	sense_lines = {}
