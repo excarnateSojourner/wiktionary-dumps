@@ -18,7 +18,7 @@ FORM_OF_TEMP_CAT_ID = 3991887
 LABEL_TEMPS = {'label', 'lb', 'lbl'}
 
 def main():
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser('Find Terms')
 	parser.add_argument('categories_path', help='Path of the parsed categories file that should be used to enumerate subcategories of explicitly mentioned categories.')
 	parser.add_argument('output_path', help='Path of the file to write the IDs of pages in the categories to.')
 	parser.add_argument('-i', '--include', required=True, nargs='+', default=[], help='Categories to include. These can either all be given as page titles, in which case --stubs-path is required to convert them to page ids, or they can all be given as page IDs (in which case --stubs-path must *not* be given).')
@@ -61,9 +61,9 @@ def main():
 		exclude_cats = set(int(i) for i in args.exclude)
 
 	if args.small_ram:
-		terms = cat_filter_slow(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+		terms = deep_cat_filter_slow(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 	else:
-		terms = cat_filter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+		terms = deep_cat_filter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 	if args.pages_path:
 		terms = entry_text_filter(terms, args.categories_path, args.pages_path, args.redirects_path, args.temps_cache_path, args.label_lang, args.exclude_labels, args.exclude_temps, args.verbose)
 
@@ -71,7 +71,7 @@ def main():
 		for term in terms:
 			print(term, file=out_file)
 
-def cat_filter(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
+def deep_cat_filter(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
 	if verbose:
 		print('Reading the contents of all categories...')
 	cat_members = collections.defaultdict(list)
@@ -125,7 +125,7 @@ def cat_filter(categories_path: str, include_cats: set[int], exclude_cats: set[i
 
 	return include_pages - exclude_pages
 
-def cat_filter_slow(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
+def deep_cat_filter_slow(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
 	if verbose:
 		print('Looking for pages and subcategories in specified categories:')
 	# collect subcats to process in the next round
@@ -204,9 +204,9 @@ def entry_text_filter(terms: set[str], categories_path: str, pages_path: str, re
 
 def find_form_of_temps(categories_path: str, small_ram: bool = False):
 	if small_ram:
-		return cat_filter_slow(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
+		return deep_cat_filter_slow(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
 	else:
-		return cat_filter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
+		return deep_cat_filter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
 
 def find_sense_lines(terms: set[str], pages_path: str, verbose: bool = False) -> dict[str, list[str]]:
 	sense_lines = {}
