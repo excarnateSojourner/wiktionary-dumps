@@ -26,6 +26,7 @@ def main():
 	parser.add_argument('-s', '--stubs-path', help='Path of the CSV file (as produced by parseStubs.py) containing page IDs and titles. If given, this indicates that the categories to include and exclude have been specified using their IDs rather than their names. Specifying IDs removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. Zero means just immediate children, one means children and grandchildren, etc. A negative value means no limit.')
+	parser.add_argument('-a', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.)')
 	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
 	parser.add_argument('-r', '--redirects-path', help='The path of the CSV redirects file produced by parseRedirects.py. Ignored if --pages-path is not given.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
@@ -59,7 +60,10 @@ def main():
 		include_cats = set(int(i) for i in args.include)
 		exclude_cats = set(int(i) for i in args.exclude)
 
-	terms = catFilter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+	if args.small_ram:
+		terms = catFilterSlow(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+	else:
+		terms = catFilter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 	if args.pages_path:
 		terms = entryTextFilter(terms, args.categories_path, args.pages_path, args.redirects_path, args.temps_cache_path, args.label_lang, args.exclude_labels, args.exclude_temps, args.verbose)
 
@@ -113,6 +117,55 @@ def catFilter(categories_path: str, include_cats: set[int], exclude_cats: set[in
 					exclude_pages.add(pageTitle)
 				else:
 					exclude_pages.add(pageId)
+		include_cats = next_include_cats
+		exclude_cats = next_exclude_cats
+		next_include_cats = set()
+		next_exclude_cats = set()
+		depth += 1
+
+	return include_pages - exclude_pages
+
+def catFilterSlow(categories_path: str, include_cats: set[int], exclude_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
+	if verbose:
+		print('Looking for pages and subcategories in specified categories:')
+	# collect subcats to process in the next round
+	next_include_cats = set()
+	next_exclude_cats = set()
+	ever_included_cats = include_cats.copy()
+	ever_excluded_cats = exclude_cats.copy()
+	# collect non-cat pages in cats
+	include_pages = set()
+	exclude_pages = set()
+
+	depth = 0
+	while (include_cats or exclude_cats) and (max_depth < 0 or depth <= max_depth):
+		if verbose:
+			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
+		for data in parseCats.catsGen(categories_path):
+			if data.catId in include_cats:
+				if data.pageTitle.startswith(CAT_PREFIX):
+					if data.pageId not in ever_included_cats:
+						next_include_cats.add(data.pageId)
+						ever_included_cats.add(data.pageId)
+						if verbose:
+							print(f'+ {data.pageTitle.removeprefix(CAT_PREFIX)}')
+				# a page to include
+				elif return_titles:
+					include_pages.add(data.pageTitle)
+				else:
+					include_pages.add(data.pageId)
+			if data.catId in exclude_cats:
+				if data.pageTitle.startswith(CAT_PREFIX):
+					if data.pageId not in ever_excluded_cats:
+						next_exclude_cats.add(data.pageId)
+						ever_excluded_cats.add(data.pageId)
+						if verbose:
+							print(f'+ {data.pageTitle.removeprefix(CAT_PREFIX)}')
+				# a page to exclude
+				elif return_titles:
+					exclude_pages.add(data.pageTitle)
+				else:
+					exclude_pages.add(data.pageId)
 		include_cats = next_include_cats
 		exclude_cats = next_exclude_cats
 		next_include_cats = set()
