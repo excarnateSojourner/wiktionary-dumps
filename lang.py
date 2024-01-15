@@ -21,35 +21,35 @@ def main():
 	doc = xml.dom.pulldom.parse(args.input_path)
 	# only used for verbose printing
 	i = 0
-	with open(args.output_path, 'w', encoding='utf-8') as outFile:
-		outFile.write('<mediawiki>\n  ')
+	with open(args.output_path, 'w', encoding='utf-8') as out_file:
+		out_file.write('<mediawiki>\n  ')
 		for event, node in doc:
 			if event == xml.dom.pulldom.START_ELEMENT and node.tagName == 'page':
-				pageNode = node
-				doc.expandNode(pageNode)
-				textNode = pageNode.getElementsByTagName('text')[0]
-				textNode.normalize()
-				text = ''.join((node.data for node in textNode.childNodes))
+				page_node = node
+				doc.expandNode(page_node)
+				text_node = page_node.getElementsByTagName('text')[0]
+				text_node.normalize()
+				text = ''.join((node.data for node in text_node.childNodes))
 				# perform a fast substring search first to avoid parsing most irrelevant pages
 				if args.language in text:
 					parsed = wikitextparser.parse(text)
 					try:
-						targetSection = next(section for section in parsed.get_sections(level=2) if section.title == args.language)
-						targetText = f'{parsed.get_sections(level=0)[0]}=={args.language}==\n{targetSection.contents}'
-						targetNode = xml.dom.minidom.Text()
-						targetNode.replaceWholeText(targetText)
+						target_section = next(section for section in parsed.get_sections(level=2) if section.title == args.language)
+						target_text = f'{parsed.get_sections(level=0)[0]}=={args.language}==\n{target_section.contents}'
+						target_node = xml.dom.minidom.Text()
+						target_node.replaceWholeText(target_text)
 						# a little hacky, and might not be officially supported, but works for now
-						textNode.childNodes = [targetNode]
-						outFile.write('  ')
-						pageNode.writexml(outFile)
-						outFile.write('\n')
+						text_node.childNodes = [target_node]
+						out_file.write('  ')
+						page_node.writexml(out_file)
+						out_file.write('\n')
 					# no section for target language
 					except StopIteration:
 						pass
 				if args.verbose and i % VERBOSE_FACTOR == 0:
 					print(i)
 				i += 1
-		print('</mediawiki>', file=outFile)
+		print('</mediawiki>', file=out_file)
 
 if __name__ == '__main__':
 	main()
