@@ -14,7 +14,7 @@ TEMPLATE_PREFIX = 'Template:'
 TempData = collections.namedtuple('TempData', ['temp_id', 'temp_title', 'page_id', 'page_title'])
 
 def main():
-	parser = argparse.ArgumentParser('Converts a templatelinks.sql file to a more readable, flexible form.')
+	parser = argparse.ArgumentParser(description='Converts a templatelinks.sql file to a more readable, flexible form.')
 	parser.add_argument('template_links_path', help='Path of the file giving all template links. This file (after decompression) is called "templatelinks.sql" in the database dumps.')
 	parser.add_argument('link_targets_path', help='Path of the additional SQL file needed to parse template links. This file (after decompression) is called "linktarget.sql" in the database dumps.')
 	parser.add_argument('pages_titles_path', help='Path of the SQL file or pages file containing title / id associations for pages (in all namespaces, including templates). The best files for this from the database dumps (after decompressing) are "page.sql" and "stub-meta-current.xml".')

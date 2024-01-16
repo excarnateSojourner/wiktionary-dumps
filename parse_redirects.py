@@ -13,7 +13,7 @@ SQL_VERBOSE_FACTOR = 400
 RedirectData = collections.namedtuple('RedirectData', ['src_id', 'src_title', 'dst_id', 'dst_title'])
 
 def main():
-	parser = argparse.ArgumentParser('Converts a redirect.sql to a more readable, flexible form.')
+	parser = argparse.ArgumentParser(description='Converts a redirect.sql to a more readable, flexible form.')
 	parser.add_argument('sql_path', help='Path of the file giving all redirects. This file (after it is unzipped) is called "redirect.sql" in the database dumps.')
 	parser.add_argument('stubs_path', help='Path of the CSV file containing page ids, namespaces, and titles, genrated by parse_stubs.py. Must contain all pages (in all namespaces) that may be the source or destination of a redirect.')
 	parser.add_argument('pages_path', help='Path of the XML file containing the ids and titles of Wiktionary namespaces. This is used to add the namespace prefixes to the titles of redirect destinations (as the SQL does not have them). Any of the following files in the dumps will work equally well for this: stub-meta-current.xml, pages-articles.xml, pages-meta-current.xml.')
