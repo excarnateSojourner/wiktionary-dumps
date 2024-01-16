@@ -64,8 +64,13 @@ def main():
 		terms = deep_cat_filter_slow(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 	else:
 		terms = deep_cat_filter(args.categories_path, include_cats, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+	terms = list(terms)
+
 	if args.pages_path:
-		terms = entry_text_filter(terms, args.categories_path, args.pages_path, args.redirects_path, args.temps_cache_path, args.label_lang, args.exclude_labels, args.exclude_temps, args.verbose)
+		term_filter = TermFilter(args.pages_path, args.label_lang, args.categories_path, args.redirects_path, args.temps_cache_path, args.exclude_labels, args.exclude_temps, args.small_ram, args.verbose)
+		if args.verbose:
+			print('Checking the senses of each term...')
+		terms = [term for term in terms if term_filter.check_term(term)]
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for term in terms:
@@ -174,77 +179,94 @@ def deep_cat_filter_slow(categories_path: str, include_cats: set[int], exclude_c
 
 	return include_pages - exclude_pages
 
-def entry_text_filter(terms: set[str], categories_path: str, pages_path: str, redirects_path: str, temps_cache_path: Optional[str], label_lang: str, exclude_labels: set[str], exclude_temps: set[str], verbose: bool = False) -> set[str]:
+class TermFilter:
+	def __init__(self,
+			pages_path: str,
+			label_lang: str,
+			categories_path: Optional[str] = None,
+			redirects_path: Optional[str] = None,
+			temps_cache_path: Optional[str] = None,
+			exclude_labels: Optional[set[str]] = None,
+			exclude_temps: Optional[set[str]] = None,
+			small_ram: bool = False,
+			verbose: bool = False):
+		if not (categories_path and redirects_path) and not temps_cache_path:
+			raise ValueError('TermFilter requires either categories_path and redirect_path so that it can find all form-of templates, or temp_cache_path so that it can use a known list of form-of templates.')
 
-	if verbose:
-		print('Finding all form-of templates and their aliases...')
-	if temps_cache_path:
+		self.verbose = verbose
+		self.sense_temps = self.find_sense_temps(pages_path)
+
 		try:
 			with open(temps_cache_path, encoding='utf-8') as temps_cache_file:
-				form_of_temps = set(temps_cache_file.read().splitlines())
-		except FileNotFoundError:
-			form_of_temps = find_form_of_temps(categories_path, args.small_ram)
-			with open(temps_cache_path, 'w', encoding='utf-8') as temps_cache_file:
-				for temp in form_of_temps:
+				self.form_of_temps = set(temps_cache_file.read().splitlines())
+		# either temps_cache_path was not given or the file does not exist
+		except (TypeError, FileNotFoundError):
+			if verbose:
+				print('Finding all form-of templates and their aliases:')
+			self.form_of_temps = self.find_form_of_temps(categories_path, redirects_path, small_ram, verbose)
+		try:
+			with open(temps_cache_path, 'x', encoding='utf-8') as temps_cache_file:
+				for temp in self.form_of_temps:
 					print(temp, file=temps_cache_file)
-	else:
-		form_of_temps = find_form_of_temps(categories_path, args.small_ram)
-
-	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects(form_of_temps, redirects_path)}
-	exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
-	sense_lines = find_sense_lines(terms, pages_path, verbose)
-
-	if verbose:
-		print('Checking forms...')
-	for term in sense_lines:
-		if not check_term(term, sense_lines, form_of_temps, exclude_labels, exclude_temps):
-			terms.remove(term)
-
-	return terms
-
-def find_form_of_temps(categories_path: str, small_ram: bool = False):
-	if small_ram:
-		return deep_cat_filter_slow(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
-	else:
-		return deep_cat_filter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True)
-
-def find_sense_lines(terms: set[str], pages_path: str, verbose: bool = False) -> dict[str, list[str]]:
-	sense_lines = {}
-
-	if verbose:
-		print('\nLoading pages data:')
-	for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
-		if page['title'] in terms:
-			sense_lines[page['title']] = [line for line in page['text'].splitlines() if line.startswith('# ')]
-		if verbose and count % PAGES_VERBOSITY_FACTOR == 0:
-			print(count)
-	return sense_lines
-
-def check_term(term: str, sense_lines: dict[str, list[str]], form_of_temps: set[str], exclude_labels: set[str], exclude_temps: set[str], time_to_live: int = 4) -> bool:
-	# if after following a few links we still haven't found a lemma, assume we are in a loop and accept the term
-	if time_to_live <= 0:
-		return True
-	for line in sense_lines[term]:
-		temps = wikitextparser.parse(line).templates
-		if any(temp.normal_name() in exclude_temps for temp in temps):
-			continue
-		try:
-			label_temp = next(t for t in temps if t.normal_name() in LABEL_TEMPS and t.arguments[0].positional and t.get_arg('1').value == 'en')
-			labels = {a.value for a in label_temp.arguments[1:] if a.positional}
-			if not labels.isdisjoint(exclude_labels):
-				continue
-		except StopIteration:
+		except FileExistsError:
 			pass
-		try:
-			form_of_temp = next(t for t in temps if t.normal_name() in form_of_temps)
-			main_form = (form_of_temp.get_arg('2') or form_of_temp.get_arg('1')).value
-			if main_form not in sense_lines or not check_term(main_form, sense_lines, form_of_temps, exclude_labels, exclude_temps, time_to_live - 1):
-				continue
-		except StopIteration:
-			pass
-		return True
-	return False
 
+		self.label_lang = label_lang
+		self.exclude_labels = exclude_labels
+		self.exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
+		self.cache = {}
+
+	def check_term(self, term: str, time_to_live: int = 4) -> bool:
+		if term not in self.cache:
+			self.cache[term] = self.check_uncached_term(term, time_to_live)
+		return self.cache[term]
+
+	def check_uncached_term(self, term: str, time_to_live: int = 4) -> bool:
+		# if after following a few links we still haven't found a lemma, assume we are in a loop and accept the term
+		if time_to_live <= 0:
+			return True
+		if term not in self.sense_temps:
+			return False
+
+		for temps in self.sense_temps[term]:
+			if any(temp.normal_name() in self.exclude_temps for temp in temps):
+				continue
+			try:
+				label_temp = next(temp for temp in temps if temp.normal_name() in LABEL_TEMPS and temp.arguments[0].positional and temp.get_arg('1').value == self.label_lang)
+				if any((arg.value in self.exclude_labels) for arg in label_temp.arguments[1:] if arg.positional):
+					continue
+			except StopIteration:
+				pass
+			try:
+				form_of_temp = next(temp for temp in temps if temp.normal_name() in self.form_of_temps)
+				main_form = (form_of_temp.get_arg('2') or form_of_temp.get_arg('1')).value
+				if not self.check_term(main_form, time_to_live - 1):
+					continue
+			except StopIteration:
+				pass
+			return True
+		return False
+
+	def find_sense_temps(self, pages_path: str) -> dict[str, list[wikitextparser._template.Template]]:
+		sense_temps = {}
+
+		if self.verbose:
+			print('\nLoading pages data:')
+		for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
+			sense_temps[page['title']] = [wikitextparser.parse(line).templates for line in page['text'].splitlines() if line.startswith('# ')]
+			if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
+				print(count)
+		return sense_temps
+
+	def find_form_of_temps(self, categories_path: str, redirects_path: str, small_ram: bool = False, verbose: bool = False):
+		if small_ram:
+			form_of_temps = deep_cat_filter_slow(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True, verbose=verbose)
+		else:
+			form_of_temps = deep_cat_filter(categories_path, {FORM_OF_TEMP_CAT_ID}, set(), return_titles=True, verbose=verbose)
+
+		return {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects(form_of_temps, redirects_path)}
+
+# end of TermFilter
 
 def include_redirects(pages: set[str], redirects_path: str) -> set[str]:
 	# assumes no double redirects
