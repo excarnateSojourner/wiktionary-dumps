@@ -47,10 +47,9 @@ def main():
 	else:
 		good_terms = deep_cat.deep_cat_filter(args.categories_path, include_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 		cat_bad_terms = deep_cat.deep_cat_filter(args.categories_path, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
-	good_terms -= cat_bad_terms
 
 	if args.pages_path:
-		term_filter = TermFilter(args.pages_path, args.label_lang, args.categories_path, args.redirects_path, args.temps_cache_path, args.exclude_labels, args.exclude_temps, args.small_ram, args.verbose)
+		term_filter = TermFilter(args.pages_path, args.label_lang, cat_bad_terms, args.categories_path, args.redirects_path, args.temps_cache_path, args.exclude_labels, args.exclude_temps, args.small_ram, args.verbose)
 		if args.verbose:
 			print('Checking the senses of each term...')
 		good_terms = [term for term in good_terms if term_filter.check_term(term)]
@@ -63,6 +62,7 @@ class TermFilter:
 	def __init__(self,
 			pages_path: str,
 			label_lang: str,
+			bad_terms: Optional[collections.abc.Iterable[str]] = None,
 			categories_path: Optional[str] = None,
 			redirects_path: Optional[str] = None,
 			temps_cache_path: Optional[str] = None,
@@ -94,7 +94,7 @@ class TermFilter:
 		self.label_lang = label_lang
 		self.exclude_labels = exclude_labels
 		self.exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
-		self.cache = {}
+		self.cache = {term: False for term in bad_terms}
 
 	def check_term(self, term: str, time_to_live: int = 4) -> bool:
 		if term not in self.cache:
