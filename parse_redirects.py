@@ -1,7 +1,6 @@
 import argparse
 import collections
 import re
-from typing import Iterator
 import xml.dom.pulldom
 
 import parse_stubs
@@ -61,7 +60,7 @@ def main():
 				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
 					print(sql_count)
 
-def redirects_gen(path: str) -> Iterator[RedirectData]:
+def redirects_gen(path: str) -> collections.abc.Iterator[RedirectData]:
 	with open(path, encoding='utf-8') as in_file:
 		for line in in_file:
 			fields = (line[:-1].split('|'))

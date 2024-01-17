@@ -22,7 +22,7 @@ def main():
 				print(i)
 
 
-def stubs_gen(stubs_path):
+def stubs_gen(stubs_path: str) -> collections.abc.Iterator[Stub]:
 	with open(stubs_path, encoding='utf-8') as stubs_file:
 		for line in stubs_file:
 			id_, ns, title = line[:-1].split('|', maxsplit=2)

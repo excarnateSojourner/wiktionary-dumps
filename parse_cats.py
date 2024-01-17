@@ -1,7 +1,6 @@
 import argparse
 import collections
 import re
-from typing import Iterator
 import xml.dom.pulldom
 
 import parse_stubs
@@ -58,7 +57,7 @@ def main():
 				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
 					print(sql_count)
 
-def cats_gen(categories_path: str) -> Iterator[CatData]:
+def cats_gen(categories_path: str) -> collections.abc.Iterator[CatData]:
 	with open(categories_path, encoding='utf-8') as cats_file:
 		for line in cats_file:
 			fields = (line[:-1].split('|', maxsplit=3))

@@ -1,7 +1,6 @@
 import argparse
 import collections
 import re
-from typing import Iterator
 import xml.dom.pulldom
 
 import pulldom_helpers
@@ -84,13 +83,13 @@ def main():
 				continue
 			print(f'{temp_id},{temp_title},{page_id},{page_title}', file=out_file)
 
-def temps_gen(templates_path: str) -> Iterator[TempData]:
+def temps_gen(templates_path: str) -> collections.abc.Iterator[TempData]:
 	with open(templates_path, encoding='utf-8') as temps_file:
 		for line in temps_file:
 			fields = (line[:-1].split(',', maxsplit=3))
 			yield TempData(temp_id=int(fields[0]), temp_title=fields[1], page_id=int(fields[2]), page_title=fields[3])
 
-def parse_sql(path: str, first_n: int = -1) -> Iterator[tuple[str]]:
+def parse_sql(path: str, first_n: int = -1) -> collections.abc.Iterator[tuple[str]]:
 	with open(path, encoding='utf-8', errors='ignore') as sql_file:
 		for line in sql_file:
 			if line.startswith('INSERT INTO '):

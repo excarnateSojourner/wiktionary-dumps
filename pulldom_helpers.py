@@ -1,4 +1,5 @@
-from typing import Iterable, Optional
+import collections
+from typing import Optional
 import xml.dom.minidom
 import xml.dom.pulldom
 
@@ -20,7 +21,7 @@ def get_text(node: xml.dom.minidom.Element) -> str:
 	else:
 		return ''
 
-def get_page_descendant_text(path: str, tags: list[str]) -> Iterable[dict[str, str]]:
+def get_page_descendant_text(path: str, tags: list[str]) -> collections.abc.Iterator[dict[str, str]]:
 	'''The order of the tags is very important; pages will be silently skipped if they are in the wrong order.'''
 	doc = xml.dom.pulldom.parse(path)
 	try:
