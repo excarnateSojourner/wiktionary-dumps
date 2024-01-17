@@ -8,10 +8,11 @@ import pulldom_helpers
 
 STUBS_VERBOSE_FACTOR = 10 ** 6
 SQL_VERBOSE_FACTOR = 400
-CATEGORY_NAMESPACE = 14
-CATEGORY_PREFIX = 'Category:'
+MASTER_VERBOSE_FACTOR = 10 ** 6
+CAT_NAMESPACE = 14
+CAT_PREFIX = 'Category:'
 
-CatData = collections.namedtuple('CatData', ['cat_id', 'cat_title', 'page_id', 'page_title'])
+CatLink = collections.namedtuple('CatLink', ['cat_id', 'cat_title', 'page_id', 'page_title'])
 
 def main():
 	parser = argparse.ArgumentParser(description='Converts a categorylinks.sql file to a more readable, flexible form.')
@@ -27,8 +28,8 @@ def main():
 	cat_ids = {}
 	for stub_count, stub in enumerate(parse_stubs.stubs_gen(args.stubs_path)):
 		page_titles[stub.id] = stub.title
-		if stub.ns == CATEGORY_NAMESPACE:
-			cat_ids[stub.title.removeprefix(CATEGORY_PREFIX)] = stub.id
+		if stub.ns == CAT_NAMESPACE:
+			cat_ids[stub.title.removeprefix(CAT_PREFIX)] = stub.id
 		if args.verbose:
 			if stub_count % STUBS_VERBOSE_FACTOR == 0:
 				print(stub_count)
@@ -57,11 +58,37 @@ def main():
 				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
 					print(sql_count)
 
-def cats_gen(categories_path: str) -> collections.abc.Iterator[CatData]:
+def cats_gen(categories_path: str) -> collections.abc.Iterator[CatLink]:
 	with open(categories_path, encoding='utf-8') as cats_file:
 		for line in cats_file:
-			fields = (line[:-1].split('|', maxsplit=3))
-			yield CatData(cat_id=int(fields[0]), cat_title=fields[1], page_id=int(fields[2]), page_title=fields[3])
+			cat_id, cat_title, page_id, page_title = (line[:-1].split('|', maxsplit=3))
+			yield CatLink(int(cat_id), cat_title, int(page_id), page_title)
+
+class Cat():
+	def __init__(self):
+		self.subcats = (set(), set())
+		self.pages = (set(), set())
+
+class CategoryMaster():
+	def __init__(self, categories_path: str, verbose: bool = False):
+		if verbose:
+			print('Loading all categories:')
+		self.cats = collections.defaultdict(Cat)
+		for count, cat_data in enumerate(cats_gen(categories_path)):
+			if cat_data.page_title.startswith(CAT_PREFIX):
+				self.cats[cat_data.cat_id].subcats[0].add(cat_data.page_id)
+				self.cats[cat_data.cat_id].subcats[1].add(cat_data.page_title)
+			else:
+				self.cats[cat_data.cat_id].pages[0].add(cat_data.page_id)
+				self.cats[cat_data.cat_id].pages[1].add(cat_data.page_title)
+			if verbose and count % MASTER_VERBOSE_FACTOR == 0:
+				print(count)
+
+	def subcats(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
+		return self.cats[cat_id].subcats[1 if titles else 0]
+
+	def pages(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
+		return self.cats[cat_id].pages[1 if titles else 0]
 
 if __name__ == '__main__':
 	main()
