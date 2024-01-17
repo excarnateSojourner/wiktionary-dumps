@@ -29,7 +29,8 @@ def main():
 	if args.small_ram:
 		select_pages = deep_cat_filter_slow(args.categories_path, select_cats, return_titles=not args.output_ids, max_depth=args.depth, verbose=args.verbose)
 	else:
-		select_pages = deep_cat_filter(args.categories_path, select_cats, return_titles=not args.output_ids, max_depth=args.depth, verbose=args.verbose)
+		cat_master = parse_cats.CategoryMaster(args.categories_path, verbose=args.verbose)
+		select_pages = deep_cat_filter(cat_master, select_cats, return_titles=not args.output_ids, max_depth=args.depth, verbose=args.verbose)
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for page in select_pages:
@@ -51,17 +52,12 @@ def category_titles_to_ids(category_titles: collections.abc.Iterable[str], stubs
 	return cat_ids
 
 def deep_cat_filter(
-		categories_path: str,
+		cat_master: parse_cats.CategoryMaster,
 		select_cats: set[int],
 		return_titles: bool = False,
 		max_depth: int = -1,
 		verbose: bool = False
 		) -> set[int] | set[str]:
-	if verbose:
-		print('Reading the contents of all categories...')
-	cat_members = collections.defaultdict(list)
-	for cat_data in parse_cats.cats_gen(categories_path):
-		cat_members[cat_data.cat_id].append((cat_data.page_id, cat_data.page_title))
 	if verbose:
 		print('Looking for pages and subcategories in selected categories...')
 	# collect subcats to process in the next round
@@ -73,17 +69,10 @@ def deep_cat_filter(
 	depth = 0
 	while select_cats and (max_depth < 0 or depth <= max_depth):
 		for cat_id in select_cats:
-			for page_id, page_title in cat_members[cat_id]:
-				if page_title.startswith(CAT_PREFIX):
-					if page_id not in ever_selected_cats:
-						next_cats.add(page_id)
-						ever_selected_cats.add(page_id)
-						print('DEBUG: + ' + page_title)
-				# a page to select
-				elif return_titles:
-					select_pages.add(page_title)
-				else:
-					select_pages.add(page_id)
+			new_subcats = cat_master.subcats(cat_id) - ever_selected_cats
+			next_cats |= new_subcats
+			ever_selected_cats |= new_subcats
+			select_pages |= cat_master.pages(cat_id, titles=return_titles)
 		select_cats = next_cats
 		next_cats = set()
 		depth += 1
