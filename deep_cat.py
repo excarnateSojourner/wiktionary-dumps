@@ -1,6 +1,5 @@
 import argparse
 import collections
-from typing import Union
 
 import parse_cats
 import parse_stubs
@@ -26,7 +25,6 @@ def main():
 			print('-c ' + ' '.join(str(i) for i in cat_ids))
 	else:
 		select_cats = set(args.cats)
-
 
 	if args.small_ram:
 		select_pages = deep_cat_filter_slow(args.categories_path, select_cats, return_titles=not args.output_ids, max_depth=args.depth, verbose=args.verbose)
@@ -58,13 +56,12 @@ def deep_cat_filter(
 		return_titles: bool = False,
 		max_depth: int = -1,
 		verbose: bool = False
-		) -> Union[set[int], set[str]]:
+		) -> set[int] | set[str]:
 	if verbose:
 		print('Reading the contents of all categories...')
 	cat_members = collections.defaultdict(list)
 	for cat_data in parse_cats.cats_gen(categories_path):
 		cat_members[cat_data.cat_id].append((cat_data.page_id, cat_data.page_title))
-
 	if verbose:
 		print('Looking for pages and subcategories in selected categories...')
 	# collect subcats to process in the next round
@@ -99,7 +96,7 @@ def deep_cat_filter_slow(
 		return_titles: bool = False,
 		max_depth: int = -1,
 		verbose: bool = False
-		) -> Union[set[int], set[str]]:
+		) -> set[int] | set[str]:
 	if verbose:
 		print('Looking for pages and subcategories in specified categories:')
 	# collect subcats to process in the next round
