@@ -52,7 +52,13 @@ def category_titles_to_ids(category_titles: collections.abc.Iterable[str], stubs
 		print(', '.join(initial_includes))
 	return cat_ids
 
-def deep_cat_filter(categories_path: str, select_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
+def deep_cat_filter(
+		categories_path: str,
+		select_cats: set[int],
+		return_titles: bool = False,
+		max_depth: int = -1,
+		verbose: bool = False
+		) -> Union[set[int], set[str]]:
 	if verbose:
 		print('Reading the contents of all categories...')
 	cat_members = collections.defaultdict(list)
@@ -87,7 +93,13 @@ def deep_cat_filter(categories_path: str, select_cats: set[int], return_titles: 
 
 	return select_pages
 
-def deep_cat_filter_slow(categories_path: str, select_cats: set[int], return_titles: bool = False, max_depth: int = -1, verbose: bool = False) -> Union[set[int], set[str]]:
+def deep_cat_filter_slow(
+		categories_path: str,
+		select_cats: set[int],
+		return_titles: bool = False,
+		max_depth: int = -1,
+		verbose: bool = False
+		) -> Union[set[int], set[str]]:
 	if verbose:
 		print('Looking for pages and subcategories in specified categories:')
 	# collect subcats to process in the next round
