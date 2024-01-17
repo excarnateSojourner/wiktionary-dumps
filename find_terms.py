@@ -1,5 +1,6 @@
 import argparse
 import collections
+import re
 from typing import Optional
 import xml.dom.pulldom
 
@@ -25,6 +26,7 @@ def main():
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. Zero means just immediate children, one means children and grandchildren, etc. A negative value means no limit.')
 	parser.add_argument('-a', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.)')
+	parser.add_argument('-w', '--only-words', action='store_true', help='Indicates that multiword terms should be rejected.')
 	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
 	parser.add_argument('-r', '--redirects-path', help='The path of the CSV redirects file produced by parse_redirects.py. Ignored if --pages-path is not given.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
@@ -47,6 +49,9 @@ def main():
 	else:
 		good_terms = deep_cat.deep_cat_filter(args.categories_path, include_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
 		cat_bad_terms = deep_cat.deep_cat_filter(args.categories_path, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+
+	if args.only_words:
+		good_terms = [term for term in good_terms if re.fullmatch(r'\w+', term)]
 
 	if args.pages_path:
 		term_filter = TermFilter(args.pages_path, args.label_lang, cat_bad_terms, args.categories_path, args.redirects_path, args.temps_cache_path, args.exclude_labels, args.exclude_temps, args.small_ram, args.verbose)
