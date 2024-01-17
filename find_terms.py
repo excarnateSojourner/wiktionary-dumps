@@ -19,18 +19,17 @@ LABEL_TEMPS = {'label', 'lb', 'lbl'}
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('cats_path', help='Path of the parsed categories file that should be used to enumerate subcategories of explicitly mentioned categories.')
-	parser.add_argument('output_path', help='Path of the file to write the IDs of pages in the categories to.')
-	parser.add_argument('-i', '--include-cats', required=True, nargs='+', default=[], help='Categories to include. These can either all be given as page titles, in which case --stubs-path is required to convert them to page ids, or they can all be given as page IDs (in which case --stubs-path must *not* be given).')
-	parser.add_argument('-e', '--exclude-cats', nargs='+', default=[], help='Categories to exclude (overriding includes).')
-	parser.add_argument('-s', '--stubs-path', help='Path of the CSV file (as produced by parse_stubs.py) containing page IDs and titles. If given, this indicates that the categories to select have been specified using their IDs rather than their names. Specifying IDs removes the need for this program to perform time-intensive name-to-id translation.')
-	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
+	parser.add_argument('pages_path', help='Path of the pages file containing the page text of all terms in the included categories. Page text is used to follow form-of template links to the lemma (main form) of a term, which is likely categorized more completely than e.g. a plural or past tense verb.')
+	parser.add_argument('cats_path', help='Path of the CSV categories file (as produced by parse_cats.py) that should be used to find subcategories of explicitly mentioned categories.')
+	parser.add_argument('redirects_path', help='The path of the CSV redirects file produced by parse_redirects.py.')
+	parser.add_argument('output_path', help='Path of the file to write the IDs of selected terms to.')
+	parser.add_argument('-i', '--include-cats', required=True, nargs='+', default=[], help='Categories from which to collect selected terms. These can either all be given as page titles, in which case --stubs-path is required to convert them to page ids, or they can all be given as page IDs (in which case --stubs-path must *not* be given).')
+	parser.add_argument('-e', '--exclude-cats', nargs='+', default=[], help='Terms in these categories will be rejected (overriding included categories).')
+	parser.add_argument('-s', '--stubs-path', help='Path of the CSV stubs file (as produced by parse_stubs.py) containing page IDs and titles. If given, this indicates that the categories to select have been specified using their IDs rather than their names. Specifying IDs removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. Zero means just immediate children, one means children and grandchildren, etc. A negative value means no limit.')
 	parser.add_argument('-a', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.)')
 	parser.add_argument('-w', '--only-words', action='store_true', help='Indicates that multiword terms should be rejected.')
-	parser.add_argument('-p', '--pages-path', help='Only intended for mainspace Wiktionary entries. If given, an additional layer of filtering is performed to remove forms of terms that are removed by analyzing their sense lines. This is useful because on Wiktionary forms (e.g. inflections and alternative forms) often lack the full categorization of their lemmas.')
-	parser.add_argument('-r', '--redirects-path', help='The path of the CSV redirects file produced by parse_redirects.py. Ignored if --pages-path is not given.')
-	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering (triggered by --pages-path).')
+	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering.')
 	parser.add_argument('-l', '--label-lang', default='en', help='The Wiktionary language code (usually the ISO 639 code) of the language for which to exclude labels. Ignored if --exclude-labels is not also given.')
 	parser.add_argument('-x', '--exclude-labels', nargs='+', default=[], help='Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
 	parser.add_argument('-m', '--exclude-temps', nargs='+', default=[], help='If a given template given here is used in a sense of a term, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.)')
@@ -45,24 +44,23 @@ def main():
 		exclude_cats = set(int(cat) for cat in args.exclude_cats)
 
 	if args.small_ram:
-		good_terms = deep_cat.deep_cat_filter_slow(args.cats_path, include_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
-		cat_bad_terms = deep_cat.deep_cat_filter_slow(args.cats_path, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+		good_terms = deep_cat.deep_cat_filter_slow(args.cats_path, include_cats, max_depth=args.depth, verbose=args.verbose)
+		cat_bad_terms = deep_cat.deep_cat_filter_slow(args.cats_path, exclude_cats, max_depth=args.depth, verbose=args.verbose)
 	else:
 		cat_master = parse_cats.CategoryMaster(args.cats_path, verbose=args.verbose)
-		good_terms = deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
-		cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, return_titles=not args.output_ids or args.pages_path, max_depth=args.depth, verbose=args.verbose)
+		good_terms = deep_cat.deep_cat_filter(cat_master, include_cats, max_depth=args.depth, verbose=args.verbose)
+		cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, max_depth=args.depth, verbose=args.verbose)
 
 	if args.only_words:
 		good_terms = [term for term in good_terms if re.fullmatch(r'\w+', term)]
 
-	if args.pages_path:
-		if args.small_ram:
-			term_filter = TermFilter(args.pages_path, args.label_lang, bad_terms=cat_bad_terms, cats_path=args.cats_path, redirects_path=args.redirects_path, temps_cache_path=args.temps_cache_path, exclude_labels=args.exclude_labels, exclude_temps=args.exclude_temps, verbose=args.verbose)
-		else:
-			term_filter = TermFilter(args.pages_path, args.label_lang, bad_terms=cat_bad_terms, cat_master=cat_master, redirects_path=args.redirects_path, temps_cache_path=args.temps_cache_path, exclude_labels=args.exclude_labels, exclude_temps=args.exclude_temps, verbose=args.verbose)
-		if args.verbose:
-			print('Checking the senses of each term...')
-		good_terms = [term for term in good_terms if term_filter.check_term(term)]
+	if args.small_ram:
+		term_filter = TermFilter(args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, cats_path=args.cats_path, temps_cache_path=args.temps_cache_path, exclude_labels=args.exclude_labels, exclude_temps=args.exclude_temps, verbose=args.verbose)
+	else:
+		term_filter = TermFilter(args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, cat_master=cat_master, temps_cache_path=args.temps_cache_path, exclude_labels=args.exclude_labels, exclude_temps=args.exclude_temps, verbose=args.verbose)
+	if args.verbose:
+		print('Checking the senses of each term...')
+	good_terms = [term for term in good_terms if term_filter.check_term(term)]
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for term in good_terms:
@@ -72,15 +70,15 @@ class TermFilter:
 	def __init__(self,
 			pages_path: str,
 			label_lang: str,
+			redirects_path: str,
 			bad_terms: Optional[collections.abc.Iterable[str]] = None,
 			cat_master: Optional[parse_cats.CategoryMaster] = None,
 			cats_path: Optional[str] = None,
-			redirects_path: Optional[str] = None,
 			temps_cache_path: Optional[str] = None,
 			exclude_labels: Optional[set[str]] = None,
 			exclude_temps: Optional[set[str]] = None,
 			verbose: bool = False):
-		if not ((cat_master or cats_path) and redirects_path) and not temps_cache_path:
+		if not (cat_master or cats_path) and not temps_cache_path:
 			raise ValueError('TermFilter requires either cats_path and redirects_path so that it can find all form-of templates, or temp_cache_path so that it can use a known list of form-of templates.')
 
 		self.verbose = verbose
