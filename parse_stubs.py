@@ -15,11 +15,11 @@ def main():
 	args = parser.parse_args()
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for i, page_data in enumerate(pulldom_helpers.get_page_descendant_text(args.pages_path, ['title', 'ns', 'id'])):
+		for count, page_data in enumerate(pulldom_helpers.get_page_descendant_text(args.pages_path, ['title', 'ns', 'id'])):
 			page = Stub(page_data['id'], page_data['ns'], page_data['title'])
 			out_file.write(f'{page.id}|{page.ns}|{page.title}\n')
-			if args.verbose and i % VERBOSITY_FACTOR == 0:
-				print(i)
+			if args.verbose and count % VERBOSITY_FACTOR == 0:
+				print(f'{count:,}')
 
 
 def stubs_gen(stubs_path: str) -> collections.abc.Iterator[Stub]:

@@ -33,7 +33,7 @@ def main():
 		titles[page.id] = page.title
 		ids[page.title] = page.id
 		if args.verbose and page_count % STUBS_VERBOSE_FACTOR == 0:
-			print(page_count)
+			print(f'{page_count:,}')
 
 	if args.verbose:
 		print('Reading redirect data (SQL) and writing output:')
@@ -58,7 +58,7 @@ def main():
 								pass
 
 				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
-					print(sql_count)
+					print(f'{sql_count:,}')
 
 def redirects_gen(path: str) -> collections.abc.Iterator[RedirectData]:
 	with open(path, encoding='utf-8') as in_file:

@@ -31,7 +31,7 @@ def main():
 			lemma_ids.add(data.page_id)
 	ids = nonlemma_ids - lemma_ids
 	if args.verbose:
-		print(f'Found {len(ids)} non-lemmas.')
+		print(f'Found {len(ids):,} non-lemmas.')
 
 	doc = xml.dom.pulldom.parse(args.pages_path)
 	count = 0
@@ -50,7 +50,7 @@ def main():
 						# term has no English definitions
 						pass
 					if args.verbose and count % VERBOSE_FACTOR == 0:
-						print(count)
+						print(f'{count:,}')
 					count += 1
 
 if __name__ == '__main__':

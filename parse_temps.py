@@ -34,7 +34,7 @@ def main():
 				temp_titles_to_ids[page_title.removeprefix(TEMPLATE_PREFIX)] = page[0]
 			if args.verbose:
 				if pages_count % SQL_VERBOSE_FACTOR == 0:
-					print(pages_count)
+					print(f'{pages_count:,}')
 				pages_count += 1
 	elif args.pages_titles_path.endswith('.xml'):
 		for page in pulldom_helpers.get_page_descendant_text(args.pages_titles_path, ['title', 'ns', 'id']):
@@ -43,7 +43,7 @@ def main():
 				temp_titles_to_ids[page['title'].removeprefix(TEMPLATE_PREFIX)] = page['id']
 			if args.verbose:
 				if pages_count % PAGES_VERBOSE_FACTOR == 0:
-					print(pages_count)
+					print(f'{pages_count:,}')
 				pages_count += 1
 	else:
 		raise ValueError(f'The extension of --pages-titles-path does not identify it as an XML file (.xml) or an SQL file (.sql).')
@@ -54,7 +54,7 @@ def main():
 	for link_targets_count, link_target in enumerate(parse_sql(args.link_targets_path)):
 		link_targets_to_temp_titles[link_target[0]] = (clean_page_title(link_target[2]), int(link_target[1]) == TEMPLATE_NAMESPACE)
 		if args.verbose and link_targets_count % SQL_VERBOSE_FACTOR == 0:
-			print(link_targets_count)
+			print(f'{link_targets_count:,}')
 
 	if args.verbose:
 		print(f'Loaded {len(page_ids_to_titles)} page titles and {len(link_targets_to_temp_titles)} temp titles.')
@@ -62,24 +62,24 @@ def main():
 	with open(args.parsed_path, 'w', encoding='utf-8') as out_file:
 		for template_links_count, link in enumerate(parse_sql(args.template_links_path)):
 			if args.verbose and template_links_count % SQL_VERBOSE_FACTOR * 10 == 0:
-				print(template_links_count)
+				print(f'{template_links_count:,}')
 			try:
 				temp_title, is_temp_ns = link_targets_to_temp_titles[link[2]]
 			except KeyError:
-				print(f'[{template_links_count}:] Link target {link[2]} not found in linktarget.sql.')
+				print(f'[{template_links_count:,}:] Link target {link[2]} not found in linktarget.sql.')
 				continue
 			if temp_title.startswith('tracking/') or not is_temp_ns:
 				continue
 			try:
 				temp_id = temp_titles_to_ids[temp_title]
 			except KeyError:
-				print(f'[{template_links_count}:] Template {temp_title} is transcluded but does not exist.')
+				print(f'[{template_links_count:,}:] Template {temp_title} is transcluded but does not exist.')
 				continue
 			page_id = link[0]
 			try:
 				page_title = page_ids_to_titles[page_id]
 			except KeyError:
-				print(f'[{template_links_count}:] Page with id {page_id} not found in page.sql.')
+				print(f'[{template_links_count:,}:] Page with id {page_id} not found in page.sql.')
 				continue
 			print(f'{temp_id},{temp_title},{page_id},{page_title}', file=out_file)
 

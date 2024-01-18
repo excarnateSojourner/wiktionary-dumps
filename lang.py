@@ -20,7 +20,7 @@ def main():
 
 	doc = xml.dom.pulldom.parse(args.input_path)
 	# only used for verbose printing
-	i = 0
+	count = 0
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		out_file.write('<mediawiki>\n  ')
 		for event, node in doc:
@@ -46,9 +46,9 @@ def main():
 					# no section for target language
 					except StopIteration:
 						pass
-				if args.verbose and i % VERBOSE_FACTOR == 0:
-					print(i)
-				i += 1
+				if args.verbose and count % VERBOSE_FACTOR == 0:
+					print(f'{count:,}')
+				count += 1
 		print('</mediawiki>', file=out_file)
 
 if __name__ == '__main__':

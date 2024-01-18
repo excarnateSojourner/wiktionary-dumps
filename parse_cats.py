@@ -32,10 +32,10 @@ def main():
 			cat_ids[stub.title.removeprefix(CAT_PREFIX)] = stub.id
 		if args.verbose:
 			if stub_count % STUBS_VERBOSE_FACTOR == 0:
-				print(stub_count)
+				print(f'{stub_count:,}')
 
 	if args.verbose:
-		print(f'Loaded {len(page_titles)} page titles and {len(cat_ids)} category ids.')
+		print(f'Loaded {len(page_titles):,} page titles and {len(cat_ids):,} category ids.')
 		print('Processing categories (SQL):')
 	with open(args.sql_path, encoding='utf-8', errors='ignore') as sql_file:
 		with open(args.output_path, 'w', encoding='utf-8') as out_file:
@@ -56,7 +56,7 @@ def main():
 							# a category may not be found if it is in use but has no page
 							pass
 				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
-					print(sql_count)
+					print(f'{sql_count:,}')
 
 def cats_gen(categories_path: str) -> collections.abc.Iterator[CatLink]:
 	with open(categories_path, encoding='utf-8') as cats_file:
@@ -82,7 +82,7 @@ class CategoryMaster():
 				self.cats[cat_data.cat_id].pages[0].add(cat_data.page_id)
 				self.cats[cat_data.cat_id].pages[1].add(cat_data.page_title)
 			if verbose and count % MASTER_VERBOSE_FACTOR == 0:
-				print(count)
+				print(f'{count:,}')
 
 	def subcats(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
 		return self.cats[cat_id].subcats[1 if titles else 0]

@@ -44,7 +44,7 @@ def main():
 						if mat and mat[1] >= args.start_date[:4]:
 							print(f'* [[{title}]]', file=out_file)
 				if args.verbose and count % VERBOSE_FACTOR == 0:
-					print(count)
+					print(f'{count:,}')
 				count += 1
 
 if __name__ == '__main__':

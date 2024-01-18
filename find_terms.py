@@ -146,7 +146,7 @@ class TermFilter:
 		for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
 			sense_temps[page['title']] = [wikitextparser.parse(line).templates for line in page['text'].splitlines() if line.startswith('# ')]
 			if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
-				print(count)
+				print(f'{count:,}')
 		return sense_temps
 
 	def find_form_of_temps(self, redirects_path: str, cat_master: Optional[parse_cats.CategoryMaster] = None, cats_path: Optional[str] = None, verbose: bool = False):

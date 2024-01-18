@@ -69,10 +69,10 @@ def find_rhymeless_words(args):
 			page_id = int(pulldom_helpers.get_descendant_text(node, 'id'))
 			if args.start_id and page_id < args.start_id:
 				if args.verbose and page_id % SKIPPING_VERBOSE_FACTOR == 0:
-					print(f'Skipping ID {page_id}...')
+					print(f'Skipping ID {page_id:,}...')
 				continue
 			elif args.verbose and page_id % MAIN_VERBOSE_FACTOR == 0:
-				print(f'Processing ID {page_id}...')
+				print(f'Processing ID {page_id:,}...')
 			title = pulldom_helpers.get_descendant_text(node, 'title')
 			text = pulldom_helpers.get_descendant_text(node, 'text')
 			if page_id in catted_words and ('{{IPA|en|' in text or '{{ipa|en|' in text) and not ('{{rhymes|en|' in text or '{{rhyme|en|' in text):

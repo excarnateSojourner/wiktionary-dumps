@@ -29,7 +29,7 @@ def main():
 			except KeyError:
 				pass
 			if args.verbose and count % VERBOSE_FACTOR == 0:
-				print(count)
+				print(f'{count:,}')
 			count += 1
 
 	for fi in ns_files.values():
