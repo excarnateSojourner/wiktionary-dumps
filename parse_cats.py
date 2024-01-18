@@ -90,5 +90,8 @@ class CategoryMaster():
 	def pages(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
 		return self.cats[cat_id].pages[1 if titles else 0]
 
+	def __len__(self):
+		return len(self.cats)
+
 if __name__ == '__main__':
 	main()
