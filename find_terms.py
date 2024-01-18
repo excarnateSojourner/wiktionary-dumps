@@ -44,12 +44,12 @@ def main():
 		exclude_cats = set(int(cat) for cat in args.exclude_cats)
 
 	if args.small_ram:
-		good_terms = deep_cat.deep_cat_filter_slow(args.cats_path, include_cats, max_depth=args.depth, verbose=args.verbose)
-		cat_bad_terms = deep_cat.deep_cat_filter_slow(args.cats_path, exclude_cats, max_depth=args.depth, verbose=args.verbose)
+		good_terms = deep_cat.deep_cat_filter_slow(args.cats_path, include_cats, return_titles=True, max_depth=args.depth, verbose=args.verbose)
+		cat_bad_terms = deep_cat.deep_cat_filter_slow(args.cats_path, exclude_cats, return_titles=True, max_depth=args.depth, verbose=args.verbose)
 	else:
 		cat_master = parse_cats.CategoryMaster(args.cats_path, verbose=args.verbose)
-		good_terms = deep_cat.deep_cat_filter(cat_master, include_cats, max_depth=args.depth, verbose=args.verbose)
-		cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, max_depth=args.depth, verbose=args.verbose)
+		good_terms = deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=True, max_depth=args.depth, verbose=args.verbose)
+		cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, return_titles=True, max_depth=args.depth, verbose=args.verbose)
 
 	if args.only_words:
 		good_terms = [term for term in good_terms if re.fullmatch(r'\w+', term)]
