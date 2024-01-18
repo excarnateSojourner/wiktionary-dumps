@@ -81,3 +81,11 @@ To allow one to create lists of terms based on what categories they are in. For 
 
 #### Output
 A list of all the terms that meet the criteria, one per line, in an output file.
+
+## Windows
+I have sometimes found it necessary on Windows to run Python like this:
+
+`python -u -X utf8 script.py --script-options`
+
+* `-u` ensures output is unbuffered. If I don't use this I find the verbose output of these scripts can get buffered until I kill Python, thinking it has frozen.
+* `-X utf8` ensures output is always in UTF-8, even when stdout is being piped to another command in Command Prompt.
