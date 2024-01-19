@@ -37,8 +37,15 @@ def main():
 	args = parser.parse_args()
 
 	if args.stubs_path:
-		include_cats = deep_cat.category_titles_to_ids(args.include_cats, args.stubs_path)
-		exclude_cats = deep_cat.category_titles_to_ids(args.exclude_cats, args.stubs_path)
+		# cats are initially stored in lists to preserve order for printing
+		include_cats = deep_cat.cat_titles_to_ids(args.include_cats, args.stubs_path)
+		exclude_cats = deep_cat.cat_titles_to_ids(args.exclude_cats, args.stubs_path)
+		if args.verbose:
+			print(f'If you want to use the same sets of included and excluded categories again later, you can use the following command line arguments (omitting --stubs-path) to provide the IDs of the categories (to save the time of converting from titles to IDs):')
+			print(f'-i {" ".join(str(cat) for cat in include_cats)} -e {" ".join(str(cat) for cat in exclude_cats)}')
+		# order isn't important now, so convert to sets to prepare for deep_cat_filter
+		include_cats = set(include_cats)
+		exclude_cats = set(exclude_cats)
 	else:
 		include_cats = set(int(cat) for cat in args.include_cats)
 		exclude_cats = set(int(cat) for cat in args.exclude_cats)

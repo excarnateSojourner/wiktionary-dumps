@@ -19,7 +19,7 @@ def main():
 	args = parser.parse_args()
 
 	if args.stubs_path:
-		select_cats = category_titles_to_ids(args.cats, args.stubs_path, args.verbose)
+		select_cats = cat_titles_to_ids(args.cats, args.stubs_path, args.verbose)
 		if args.verbose:
 			print('If you want to select the same sets of categories later, and you want to provide their IDs instead of titles (so I do not have to translate to IDs for you), here are the IDs formatted as command-line arguments:')
 			print('-c ' + ' '.join(str(i) for i in cat_ids))
@@ -36,15 +36,15 @@ def main():
 		for page in select_pages:
 			print(page, file=out_file)
 
-def category_titles_to_ids(category_titles: collections.abc.Iterable[str], stubs_path: str, verbose: bool = False) -> set[int]:
+def cat_titles_to_ids(category_titles: collections.abc.Iterable[str], stubs_path: str, verbose: bool = False) -> list[int]:
 	if verbose:
 		print('Translating category names to ids...')
 	initial_includes = set((cat if cat.startswith(CAT_PREFIX) else CAT_PREFIX + cat) for cat in category_titles)
-	cat_ids = set()
+	cat_ids = []
 
 	for stub in parse_stubs.stubs_gen(stubs_path):
 		if stub.title in initial_includes:
-			cat_ids.add(stub.id)
+			cat_ids.append(stub.id)
 			initial_includes.remove(stub.title)
 	if initial_includes:
 		print('I was unable to find pages for the following categories. This either means they do not exist (check your spelling) or the category pages have not been created.')
