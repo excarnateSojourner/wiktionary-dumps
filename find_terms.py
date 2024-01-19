@@ -149,7 +149,8 @@ class TermFilter:
 				print(f'{count:,}')
 		return sense_temps
 
-	def find_form_of_temps(self, redirects_path: str, cat_master: Optional[parse_cats.CategoryMaster] = None, cats_path: Optional[str] = None, verbose: bool = False):
+	@classmethod
+	def find_form_of_temps(cls, redirects_path: str, cat_master: Optional[parse_cats.CategoryMaster] = None, cats_path: Optional[str] = None, verbose: bool = False):
 		if not cat_master and not cats_path:
 			raise ValueError('TermFilter.find_form_of_temps() requires at least one of cat_master (parse_cats.CategoryMaster) and cats_path (str).')
 
