@@ -28,7 +28,7 @@ def main():
 	parser.add_argument('-s', '--stubs-path', help='The path of the CSV stubs file (as produced by parse_stubs.py) containing page IDs and titles. If given, this indicates that the categories to select have been specified using their IDs rather than their names. Specifying IDs removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. By default there is no limit (indicated by a negative value). Zero means just immediate children, one means children and grandchildren, and so on.')
 	parser.add_argument('-a', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.)')
-	parser.add_argument('-w', '--only-words', action='store_true', help='Indicates that multiword terms (terms spelled with spaces, hyphens, etc.) should be excluded.')
+	parser.add_argument('-r', '--regex', help='A regular expression that terms must fully match to be included. Matching is performed by Python\'s re.fullmatch(), so see that module\'s documentation for details. Note that the entire term must "fit within" the given regex, so if you want to find terms that merely *contain* a particular pattern, add .* at the beginning and end of your regex.')
 	parser.add_argument('-t', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering. If you want to entirely avoid following form-of links in entries, use this option with the path of an empty file.')
 	parser.add_argument('-l', '--label-lang', default='en', help='The Wiktionary language code (usually the ISO 639 code) of the language for which to exclude labels. Defaults to "en" for English. Ignored if --exclude-labels is not also given.')
 	parser.add_argument('-x', '--exclude-labels', nargs='+', default=[], help='If a sense of a term has one of these labels, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.) Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
@@ -58,8 +58,8 @@ def main():
 		good_terms = deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=True, max_depth=args.depth, verbose=args.verbose)
 		cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, return_titles=True, max_depth=args.depth, verbose=args.verbose)
 
-	if args.only_words:
-		good_terms = [term for term in good_terms if re.fullmatch(r'\w+', term)]
+	if args.regex:
+		good_terms = [term for term in good_terms if re.fullmatch(args.regex, term)]
 
 	if args.small_ram:
 		term_filter = TermFilter(args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, cats_path=args.cats_path, temps_cache_path=args.temps_cache_path, exclude_labels=args.exclude_labels, exclude_temps=args.exclude_temps, verbose=args.verbose)
