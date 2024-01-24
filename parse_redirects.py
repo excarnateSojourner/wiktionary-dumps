@@ -42,7 +42,7 @@ def main():
 			for sql_count, line in enumerate(sql_file):
 				if line.startswith('INSERT INTO '):
 					try:
-						line_trimmed = re.match('INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
+						line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
 					# no match
 					except TypeError:
 						continue
