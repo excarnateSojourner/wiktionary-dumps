@@ -80,7 +80,7 @@ class TermFilter:
 			pages_path: str,
 			label_lang: str,
 			redirects_path: str,
-			bad_terms: collections.abc.Iterable[str] | None = None,
+			bad_terms: collections.abc.Collection[str] | None = None,
 			cat_master: parse_cats.CategoryMaster | None = None,
 			cats_path: str | None = None,
 			temps_cache_path: str | None = None,
@@ -92,7 +92,7 @@ class TermFilter:
 			raise ValueError('TermFilter requires either cats_path and redirects_path so that it can find all form-of templates, or temp_cache_path so that it can use a known list of form-of templates.')
 
 		self.verbose = verbose
-		self.sense_temps = self.find_sense_temps(pages_path, parts_of_speech)
+		self.sense_temps = self.find_sense_temps(pages_path, bad_terms, parts_of_speech)
 
 		try:
 			with open(temps_cache_path, encoding='utf-8') as temps_cache_file:
@@ -148,7 +148,7 @@ class TermFilter:
 			return True
 		return False
 
-	def find_sense_temps(self, pages_path: str, parts_of_speech: collections.abc.Container[str] | None = None) -> dict[str, list[list[wikitextparser._template.Template]]]:
+	def find_sense_temps(self, pages_path: str, bad_terms: collections.abc.Collection[str] | None = None, parts_of_speech: collections.abc.Container[str] | None = None) -> dict[str, list[list[wikitextparser._template.Template]]]:
 		sense_temps = {}
 
 		def temps_in_section(section):
@@ -176,6 +176,8 @@ class TermFilter:
 		# No parts of speech specified
 		else:
 			for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
+				if bad_terms and page['title'] in bad_terms:
+					continue
 				if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
 					print(f'{count:,}')
 				if not (bad_terms and page['title'] in bad_terms):
