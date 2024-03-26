@@ -2,7 +2,6 @@ import argparse
 import collections
 import functools
 import re
-from typing import Optional
 import xml.dom.pulldom
 
 import wikitextparser
@@ -18,7 +17,7 @@ TEMP_PREFIX = 'Template:'
 FORM_OF_TEMP_CAT_ID = 3991887
 LABEL_TEMPS = {'label', 'lb', 'lbl'}
 
-def main():
+def main() -> None:
 	parser = argparse.ArgumentParser()
 	parser.add_argument('pages_path', help='The path of the pages file containing the page text of all terms in the included categories. Page text is used to follow form-of template links to the lemma (main form) of a term, which is likely categorized more completely than e.g. a plural or past tense verb.')
 	parser.add_argument('cats_path', help='The path of the CSV categories file (as produced by parse_cats.py) that should be used to find subcategories of explicitly mentioned categories.')
@@ -81,13 +80,13 @@ class TermFilter:
 			pages_path: str,
 			label_lang: str,
 			redirects_path: str,
-			bad_terms: Optional[collections.abc.Iterable[str]] = None,
-			cat_master: Optional[parse_cats.CategoryMaster] = None,
-			cats_path: Optional[str] = None,
-			temps_cache_path: Optional[str] = None,
-			exclude_labels: Optional[set[str]] = None,
-			exclude_temps: Optional[set[str]] = None,
-			parts_of_speech: Optional[collections.abc.Container[str]] = None,
+			bad_terms: collections.abc.Iterable[str] | None = None,
+			cat_master: parse_cats.CategoryMaster | None = None,
+			cats_path: str | None = None,
+			temps_cache_path: str | None = None,
+			exclude_labels: collections.abc.Container[str] | None = None,
+			exclude_temps: collections.abc.Iterable[str] | None = None,
+			parts_of_speech: collections.abc.Container[str] | None = None,
 			verbose: bool = False):
 		if not (cat_master or cats_path) and not temps_cache_path:
 			raise ValueError('TermFilter requires either cats_path and redirects_path so that it can find all form-of templates, or temp_cache_path so that it can use a known list of form-of templates.')
@@ -149,7 +148,7 @@ class TermFilter:
 			return True
 		return False
 
-	def find_sense_temps(self, pages_path: str, parts_of_speech: Optional[collections.abc.Container[str]] = None) -> dict[str, list[list[wikitextparser._template.Template]]]:
+	def find_sense_temps(self, pages_path: str, parts_of_speech: collections.abc.Container[str] | None = None) -> dict[str, list[list[wikitextparser._template.Template]]]:
 		sense_temps = {}
 
 		def temps_in_section(section):
@@ -184,7 +183,7 @@ class TermFilter:
 		return sense_temps
 
 	@classmethod
-	def find_form_of_temps(cls, redirects_path: str, cat_master: Optional[parse_cats.CategoryMaster] = None, cats_path: Optional[str] = None, verbose: bool = False):
+	def find_form_of_temps(cls, redirects_path: str, cat_master: parse_cats.CategoryMaster | None = None, cats_path: str | None = None, verbose: bool = False) -> set[str]:
 		if not cat_master and not cats_path:
 			raise ValueError('TermFilter.find_form_of_temps() requires at least one of cat_master (parse_cats.CategoryMaster) and cats_path (str).')
 
