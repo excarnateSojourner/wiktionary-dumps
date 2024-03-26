@@ -1,5 +1,6 @@
 import argparse
 import collections
+import functools
 import re
 from typing import Optional
 import xml.dom.pulldom
@@ -33,6 +34,7 @@ def main():
 	parser.add_argument('-l', '--label-lang', default='en', help='The Wiktionary language code (usually the ISO 639 code) of the language for which to exclude labels. Defaults to "en" for English. Ignored if --exclude-labels is not also given.')
 	parser.add_argument('-x', '--exclude-labels', nargs='+', default=[], help='If a sense of a term has one of these labels, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.) Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
 	parser.add_argument('-m', '--exclude-temps', nargs='+', default=[], help='If a given template given here is used in a sense of a term, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.)')
+	parser.add_argument('-p', '--parts-of-speech', nargs='+', default=[], help='If a sense is not one of these parts of speech (think noun, verb, etc) then it will not support the inclusion of a term. Case insensitive.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
@@ -61,10 +63,11 @@ def main():
 	if args.regex:
 		good_terms = [term for term in good_terms if re.fullmatch(args.regex, term)]
 
+	term_filter_model = functools.partial(TermFilter, args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, temps_cache_path=args.temps_cache_path, exclude_labels=set(args.exclude_labels), exclude_temps=args.exclude_temps, parts_of_speech=set(p.lower() for p in args.parts_of_speech), verbose=args.verbose)
 	if args.small_ram:
-		term_filter = TermFilter(args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, cats_path=args.cats_path, temps_cache_path=args.temps_cache_path, exclude_labels=args.exclude_labels, exclude_temps=args.exclude_temps, verbose=args.verbose)
+		term_filter = term_filter_model(cats_path=args.cats_path)
 	else:
-		term_filter = TermFilter(args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, cat_master=cat_master, temps_cache_path=args.temps_cache_path, exclude_labels=args.exclude_labels, exclude_temps=args.exclude_temps, verbose=args.verbose)
+		term_filter = term_filter_model(cat_master=cat_master)
 	if args.verbose:
 		print('Checking the senses of each term...')
 	good_terms = [term for term in good_terms if term_filter.check_term(term)]
@@ -84,12 +87,13 @@ class TermFilter:
 			temps_cache_path: Optional[str] = None,
 			exclude_labels: Optional[set[str]] = None,
 			exclude_temps: Optional[set[str]] = None,
+			parts_of_speech: Optional[collections.abc.Container[str]] = None,
 			verbose: bool = False):
 		if not (cat_master or cats_path) and not temps_cache_path:
 			raise ValueError('TermFilter requires either cats_path and redirects_path so that it can find all form-of templates, or temp_cache_path so that it can use a known list of form-of templates.')
 
 		self.verbose = verbose
-		self.sense_temps = self.find_sense_temps(pages_path)
+		self.sense_temps = self.find_sense_temps(pages_path, parts_of_speech)
 
 		try:
 			with open(temps_cache_path, encoding='utf-8') as temps_cache_file:
@@ -112,7 +116,7 @@ class TermFilter:
 		self.label_lang = label_lang
 		self.exclude_labels = exclude_labels
 		self.exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
-		self.cache = {term: False for term in bad_terms}
+		self.cache = {term: False for term in bad_terms} if bad_terms else {}
 
 	def check_term(self, term: str, time_to_live: int = 4) -> bool:
 		if term not in self.cache:
@@ -145,15 +149,38 @@ class TermFilter:
 			return True
 		return False
 
-	def find_sense_temps(self, pages_path: str) -> dict[str, list[wikitextparser._template.Template]]:
+	def find_sense_temps(self, pages_path: str, parts_of_speech: Optional[collections.abc.Container[str]] = None) -> dict[str, list[list[wikitextparser._template.Template]]]:
 		sense_temps = {}
+
+		def temps_in_section(section):
+			return [wikitextparser.parse(line).templates for line in section.splitlines() if line.startswith('# ')]
 
 		if self.verbose:
 			print('\nLoading pages data:')
-		for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
-			sense_temps[page['title']] = [wikitextparser.parse(line).templates for line in page['text'].splitlines() if line.startswith('# ')]
-			if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
-				print(f'{count:,}')
+		if parts_of_speech:
+			for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
+				if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
+					print(f'{count:,}')
+				if bad_terms and page['title'] in bad_terms:
+					continue
+				wikitext = wikitextparser.parse(page['text']).get_sections(level=2)[0]
+				for section in wikitext.get_sections(level=3):
+					# Multiple etymologies
+					if re.fullmatch(r'Etymology \d+', section.title):
+						for subsection in section.get_sections(level=4):
+							if subsection.title.lower() in parts_of_speech:
+								sense_temps[page['title']] = temps_in_section(subsection.contents)
+					# Single etymology
+					else:
+						if section.title.lower() in parts_of_speech:
+							sense_temps[page['title']] = temps_in_section(section.contents)
+		# No parts of speech specified
+		else:
+			for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
+				if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
+					print(f'{count:,}')
+				if not (bad_terms and page['title'] in bad_terms):
+					sense_temps[page['title']] = temps_in_section(page['text'])
 		return sense_temps
 
 	@classmethod
