@@ -148,10 +148,14 @@ class TermFilter:
 			return True
 		return False
 
-	def find_sense_temps(self, pages_path: str, bad_terms: collections.abc.Collection[str] | None = None, parts_of_speech: collections.abc.Container[str] | None = None) -> dict[str, list[list[wikitextparser._template.Template]]]:
+	def find_sense_temps(self,
+			pages_path: str,
+			bad_terms: collections.abc.Collection[str] | None = None,
+			parts_of_speech: collections.abc.Container[str] | None = None
+			) -> dict[str, list[list[wikitextparser._template.Template]]]:
 		sense_temps = {}
 
-		def temps_in_section(section):
+		def temps_in_section(section: str) -> list[list[wikitextparser._template.Template]]:
 			return [wikitextparser.parse(line).templates for line in section.splitlines() if line.startswith('# ')]
 
 		if self.verbose:
@@ -185,7 +189,12 @@ class TermFilter:
 		return sense_temps
 
 	@classmethod
-	def find_form_of_temps(cls, redirects_path: str, cat_master: parse_cats.CategoryMaster | None = None, cats_path: str | None = None, verbose: bool = False) -> set[str]:
+	def find_form_of_temps(cls,
+			redirects_path: str,
+			cat_master: parse_cats.CategoryMaster | None = None,
+			cats_path: str | None = None,
+			verbose: bool = False
+			) -> set[str]:
 		if not cat_master and not cats_path:
 			raise ValueError('TermFilter.find_form_of_temps() requires at least one of cat_master (parse_cats.CategoryMaster) and cats_path (str).')
 
