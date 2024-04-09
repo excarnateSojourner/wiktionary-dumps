@@ -3,23 +3,18 @@ from typing import Optional
 import xml.dom.minidom
 import xml.dom.pulldom
 
-def get_node(doc: xml.dom.pulldom.DOMEventStream, tag: str):
-	node = next(no for ev, no in doc if ev == xml.dom.pulldom.START_ELEMENT and no.tagName == tag)
-	doc.expandNode(node)
-	return node
-
-def get_descendant_text(node: xml.dom.minidom.Element, childName: str) -> Optional[str]:
-	try:
-		return get_text(node.getElementsByTagName(childName)[0])
-	except StopIteration:
-		return None
-
 def get_text(node: xml.dom.minidom.Element) -> str:
 	if node.hasChildNodes():
 		node.normalize()
 		return node.firstChild.data
 	else:
 		return ''
+
+def get_descendant_text(node: xml.dom.minidom.Element, childName: str) -> Optional[str]:
+	try:
+		return get_text(node.getElementsByTagName(childName)[0])
+	except StopIteration:
+		return None
 
 def get_page_descendant_text(path: str, tags: list[str]) -> collections.abc.Iterator[dict[str, str]]:
 	'''The order of the tags is very important; pages will be silently skipped if they are in the wrong order.'''
