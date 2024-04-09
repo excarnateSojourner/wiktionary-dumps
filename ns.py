@@ -10,7 +10,7 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('input_path')
 	parser.add_argument('namespaces', nargs='+', type=int, help='The index(es) of the namespace(s) to select.')
-	parser.add_argument('--output-path-prefix', '-o', default='pages-')
+	parser.add_argument('-o', '--output-path-prefix', default='pages-')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
