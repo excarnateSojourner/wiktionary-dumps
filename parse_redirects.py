@@ -7,7 +7,6 @@ import parse_stubs
 import pulldom_helpers
 
 STUBS_VERBOSE_FACTOR = 10 ** 6
-SQL_VERBOSE_FACTOR = 400
 
 RedirectData = collections.namedtuple('RedirectData', ['src_id', 'src_title', 'dst_id', 'dst_title'])
 
@@ -36,10 +35,10 @@ def main():
 			print(f'{page_count:,}')
 
 	if args.verbose:
-		print('Reading redirect data (SQL) and writing output:')
+		print('Reading redirect data (SQL) and writing output...')
 	with open(args.sql_path, encoding='utf-8', errors='ignore') as sql_file:
 		with open(args.output_path, 'w', encoding='utf-8') as out_file:
-			for sql_count, line in enumerate(sql_file):
+			for line in sql_file:
 				if line.startswith('INSERT INTO '):
 					try:
 						line_trimmed = re.fullmatch(r'INSERT INTO `\w*` VALUES \((.*)\);', line[:-1])[1]
@@ -62,9 +61,6 @@ def main():
 							except KeyError:
 								# broken redirect
 								pass
-
-				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
-					print(f'{sql_count:,}')
 
 def redirects_gen(path: str) -> collections.abc.Iterator[RedirectData]:
 	with open(path, encoding='utf-8') as in_file:
