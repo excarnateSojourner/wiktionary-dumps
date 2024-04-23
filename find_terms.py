@@ -1,8 +1,8 @@
 import argparse
 import collections
 import functools
+import os.path
 import re
-import xml.dom.pulldom
 
 import wikitextparser
 
@@ -65,6 +65,10 @@ def main() -> None:
 	term_filter_model = functools.partial(TermFilter, args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, temps_cache_path=args.temps_cache_path, exclude_labels=set(args.exclude_labels), exclude_temps=args.exclude_temps, parts_of_speech=set(p.lower() for p in args.parts_of_speech), verbose=args.verbose)
 	if args.small_ram:
 		term_filter = term_filter_model(cats_path=args.cats_path)
+	# If we have a known list of form-of temps, TermFilter doesn't need category data
+	elif args.temps_cache_path and os.path.isfile(args.temps_cache_path):
+		del cat_master
+		term_filter = term_filter_model()
 	else:
 		term_filter = term_filter_model(cat_master=cat_master)
 	if args.verbose:
