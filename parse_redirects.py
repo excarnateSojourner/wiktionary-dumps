@@ -42,7 +42,7 @@ def main():
 			for sql_count, line in enumerate(sql_file):
 				if line.startswith('INSERT INTO '):
 					try:
-						line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
+						line_trimmed = re.fullmatch(r'INSERT INTO `\w*` VALUES \((.*)\);', line[:-1])[1]
 					# no match
 					except TypeError:
 						continue
@@ -50,7 +50,13 @@ def main():
 					for row in rows:
 						# if an internal redirect
 						if len(row[3]) == 2:
-							dst_title = ns_titles[int(row[1])] + ':' + row[2].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
+							try:
+								dst_ns = ns_titles[int(row[1])]
+							except KeyError:
+								# destination namespace does not exist
+								# encountered in 24-04-01 dump, possibly due to deletion of the concordance namespace
+								continue
+							dst_title = dst_ns + ':' + row[2].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
 							try:
 								print(f'{row[0]}|{titles[int(row[0])]}|{ids[dst_title]}|{dst_title}', file=out_file)
 							except KeyError:
