@@ -1,8 +1,7 @@
 import argparse
-import xml.dom.minidom
-import xml.dom.pulldom
+import xml.etree.ElementTree as xet
 
-import pulldom_helpers
+import etree_helpers
 
 VERBOSE_FACTOR = 10 ** 4
 
@@ -14,26 +13,29 @@ def main():
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
-	doc = xml.dom.pulldom.parse(args.input_path)
-	count = 0
 	ns_files = {ns: open(f'{args.output_path_prefix}{ns}.xml', 'w', encoding='utf-8') for ns in args.namespaces}
 	for fi in ns_files.values():
-		fi.write('<mediawiki>')
+		fi.write('<mediawiki>\n  ')
 
-	for event, page_node in doc:
-		if event == xml.dom.pulldom.START_ELEMENT and page_node.tagName == 'page':
-			doc.expandNode(page_node)
-			actual_ns = int(pulldom_helpers.get_descendant_text(page_node, 'ns'))
-			try:
-				ns_files[actual_ns].write(f'\n  {page_node.toxml()}')
-			except KeyError:
-				pass
+	count = 0
+	for _, elem in xet.iterparse(args.input_path):
+		if etree_helpers.tag_without_xml_ns_is(elem, 'page'):
+			actual_ns = int(next(child for child in elem if etree_helpers.tag_without_xml_ns_is(child, 'ns')).text)
+			if actual_ns in args.namespaces:
+				elem = etree_helpers.rm_xml_nses(elem)
+				xml_str = xet.tostring(elem, encoding='unicode')
+				ns_files[actual_ns].write(xml_str)
+
+			# Even though the docs say iterparse is useful for reading large documents without holding them wholly in memory, it still builds a tree in the background as it goes, using memory proportional to the size of the document!
+			# Since effectively all the content in our XML is in <page>s, by clearing these as we go we prevent unnecessary hogging of memory
+			elem.clear()
+
 			if args.verbose and count % VERBOSE_FACTOR == 0:
 				print(f'{count:,}')
 			count += 1
 
 	for fi in ns_files.values():
-		fi.write('\n</mediawiki>\n')
+		fi.write('</mediawiki>\n')
 		fi.close()
 
 if __name__ == '__main__':
