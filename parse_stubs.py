@@ -1,7 +1,8 @@
 import argparse
 import collections
+import xml.etree.ElementTree as xet
 
-import pulldom_helpers
+import etree_helpers
 
 VERBOSITY_FACTOR = 10 ** 5
 
@@ -15,9 +16,12 @@ def main():
 	args = parser.parse_args()
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for count, page_data in enumerate(pulldom_helpers.get_page_descendant_text(args.pages_path, ['title', 'ns', 'id'])):
-			page = Stub(page_data['id'], page_data['ns'], page_data['title'])
-			out_file.write(f'{page.id}|{page.ns}|{page.title}\n')
+		page_gen = (elem for _, elem in xet.iterparse(args.pages_path) if etree_helpers.tag_without_xml_ns_is(elem, 'page'))
+		for count, page in enumerate(page_gen):
+			stub = tuple(etree_helpers.find_child(page, child).text for child in ['id', 'ns', 'title'])
+			print('|'.join(stub), file=out_file)
+			page.clear()
+
 			if args.verbose and count % VERBOSITY_FACTOR == 0:
 				print(f'{count:,}')
 
