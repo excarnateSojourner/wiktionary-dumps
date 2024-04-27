@@ -17,3 +17,8 @@ def find_child(elem: xet.Element, tag: str) -> xet.Element | None:
 		return next(child for child in elem if tag_without_xml_ns_is(child, tag))
 	except StopIteration:
 		return None
+
+def get_mw_namespaces(path: str) -> dict[int, str]:
+	mw_ns_elem = next(elem for _, elem in xet.iterparse(path) if tag_without_xml_ns_is(elem, 'namespaces'))
+	rm_xml_nses(mw_ns_elem)
+	return {int(child.get('key')): child.text for child in mw_ns_elem if child.tag == 'namespace'}

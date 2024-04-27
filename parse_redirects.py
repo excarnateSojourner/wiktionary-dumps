@@ -1,10 +1,10 @@
 import argparse
 import collections
+import collections.abc
 import re
-import xml.dom.pulldom
 
 import parse_stubs
-import pulldom_helpers
+import etree_helpers
 
 STUBS_VERBOSE_FACTOR = 10 ** 6
 
@@ -21,7 +21,7 @@ def main():
 
 	if args.verbose:
 		print('Loading namespace prefixes...')
-	ns_titles = pulldom_helpers.get_namespace_titles(args.pages_path)
+	ns_titles = etree_helpers.get_mw_namespaces(args.pages_path)
 
 	if args.verbose:
 		print('Loading ids and titles:')
