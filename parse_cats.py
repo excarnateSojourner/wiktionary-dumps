@@ -1,10 +1,9 @@
 import argparse
 import collections
+import collections.abc
 import re
-import xml.dom.pulldom
 
 import parse_stubs
-import pulldom_helpers
 
 STUBS_VERBOSE_FACTOR = 10 ** 6
 SQL_VERBOSE_FACTOR = 400
