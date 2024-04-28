@@ -1,5 +1,5 @@
 import argparse
-import collections
+import collections.abc
 import functools
 import os.path
 import re
@@ -7,9 +7,9 @@ import re
 import wikitextparser
 
 import deep_cat
+import etree_helpers
 import parse_cats
 import parse_redirects
-import pulldom_helpers
 
 PAGES_VERBOSITY_FACTOR = 10 ** 4
 TEMP_PREFIX = 'Template:'
@@ -17,6 +17,7 @@ TEMP_PREFIX = 'Template:'
 FORM_OF_TEMP_CAT_ID = 3991887
 LABEL_TEMPS = {'label', 'lb', 'lbl'}
 
+@profile
 def main() -> None:
 	parser = argparse.ArgumentParser()
 	parser.add_argument('pages_path', help='The path of the pages file containing the page text of all terms in the included categories. Page text is used to follow form-of template links to the lemma (main form) of a term, which is likely categorized more completely than e.g. a plural or past tense verb.')
@@ -62,7 +63,7 @@ def main() -> None:
 	if args.regex:
 		good_terms = [term for term in good_terms if re.fullmatch(args.regex, term)]
 
-	term_filter_model = functools.partial(TermFilter, args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, temps_cache_path=args.temps_cache_path, exclude_labels=set(args.exclude_labels), exclude_temps=args.exclude_temps, parts_of_speech=set(p.lower() for p in args.parts_of_speech), verbose=args.verbose)
+	term_filter_model = functools.partial(TermFilter, args.pages_path, args.label_lang, args.redirects_path, bad_terms=cat_bad_terms, temps_cache_path=args.temps_cache_path, exclude_labels=set(args.exclude_labels), exclude_temps=args.exclude_temps, parts_of_speech=set(p.casefold() for p in args.parts_of_speech), verbose=args.verbose)
 	if args.small_ram:
 		term_filter = term_filter_model(cats_path=args.cats_path)
 	# If we have a known list of form-of temps, TermFilter doesn't need category data
@@ -165,31 +166,39 @@ class TermFilter:
 		if self.verbose:
 			print('\nLoading pages data:')
 		if parts_of_speech:
-			for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
-				if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
-					print(f'{count:,}')
-				if bad_terms and page['title'] in bad_terms:
+			for count, page in enumerate(etree_helpers.pages_gen(pages_path)):
+				page_title = etree_helpers.find_child(page, 'title').text
+				page_text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+				if bad_terms and page_title in bad_terms:
 					continue
-				wikitext = wikitextparser.parse(page['text']).get_sections(level=2)[0]
+				# Assume lang has removed all L2 sections except for the relevant one
+				wikitext = wikitextparser.parse(page_text).get_sections(level=2)[0]
 				for section in wikitext.get_sections(level=3):
 					# Multiple etymologies
 					if re.fullmatch(r'Etymology \d+', section.title):
 						for subsection in section.get_sections(level=4):
-							if subsection.title.lower() in parts_of_speech:
-								sense_temps[page['title']] = temps_in_section(subsection.contents)
+							if subsection.title.casefold() in parts_of_speech:
+								sense_temps[page_title] = temps_in_section(subsection.contents)
 					# Single etymology
 					else:
-						if section.title.lower() in parts_of_speech:
-							sense_temps[page['title']] = temps_in_section(section.contents)
-		# No parts of speech specified
-		else:
-			for count, page in enumerate(pulldom_helpers.get_page_descendant_text(pages_path, ['title', 'text'])):
-				if bad_terms and page['title'] in bad_terms:
-					continue
+						if section.title.casefold() in parts_of_speech:
+							sense_temps[page_title] = temps_in_section(section.contents)
+				page.clear()
+
 				if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
 					print(f'{count:,}')
-				if not (bad_terms and page['title'] in bad_terms):
-					sense_temps[page['title']] = temps_in_section(page['text'])
+
+		# No parts of speech specified
+		else:
+			for count, page in enumerate(etree_helpers.pages_gen(pages_path)):
+				page_title = etree_helpers.find_child(page, 'title').text
+				page_text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+				if not (bad_terms and page_title in bad_terms):
+					sense_temps[page_title] = temps_in_section(page_text)
+				page.clear()
+
+				if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
+					print(f'{count:,}')
 		return sense_temps
 
 	@classmethod
