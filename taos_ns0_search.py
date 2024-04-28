@@ -1,3 +1,9 @@
+'''
+See https://en.wiktionary.org/wiki/User:ExcarnateSojournerBot/Past_projects#Replace_curly_quotes_in_Taos_terms
+
+This script is no longer used.
+'''
+
 import argparse
 import re
 
