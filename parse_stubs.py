@@ -16,8 +16,7 @@ def main():
 	args = parser.parse_args()
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		page_gen = (elem for _, elem in xet.iterparse(args.pages_path) if etree_helpers.tag_without_xml_ns_is(elem, 'page'))
-		for count, page in enumerate(page_gen):
+		for count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
 			stub = tuple(etree_helpers.find_child(page, child).text for child in ['id', 'ns', 'title'])
 			print('|'.join(stub), file=out_file)
 			page.clear()

@@ -1,3 +1,4 @@
+import collections.abc
 import re
 import xml.etree.ElementTree as xet
 
@@ -17,6 +18,9 @@ def find_child(elem: xet.Element, tag: str) -> xet.Element | None:
 		return next(child for child in elem if tag_without_xml_ns_is(child, tag))
 	except StopIteration:
 		return None
+
+def pages_gen(pages_path: str) -> collections.abc.Iterator[xet.Element]:
+	return (elem for _, elem in xet.iterparse(pages_path) if tag_without_xml_ns_is(elem, 'page'))
 
 def get_mw_namespaces(path: str) -> dict[int, str]:
 	mw_ns_elem = next(elem for _, elem in xet.iterparse(path) if tag_without_xml_ns_is(elem, 'namespaces'))

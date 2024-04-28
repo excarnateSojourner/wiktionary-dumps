@@ -22,27 +22,26 @@ def main():
 		out_file.write('<mediawiki>\n  ')
 		# only used for verbose printing
 		count = 0
-		for _, elem in xet.iterparse(args.input_path):
-			if etree_helpers.tag_without_xml_ns_is(elem, 'page'):
-				text_elem = etree_helpers.find_child(etree_helpers.find_child(elem, 'revision'), 'text')
-				# perform a fast substring search first to avoid parsing most irrelevant pages
-				if args.language in text_elem.text:
-					parsed = wikitextparser.parse(text_elem.text)
-					try:
-						target_section = next(section for section in parsed.get_sections(level=2) if section.title == args.language)
-						text_elem.text = f'{parsed.get_sections(level=0)[0]}=={args.language}==\n{target_section.contents}'
-						elem_xml = xet.tostring(elem, encoding='unicode')
-						out_file.write('  ')
-						out_file.write(elem_xml)
-						out_file.write('\n')
-					# no section for target language
-					except StopIteration:
-						pass
-				elem.clear()
+		for page in etree_helpers.pages_gen(args.input_path):
+			text_elem = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text')
+			# perform a fast substring search first to avoid parsing most irrelevant pages
+			if args.language in text_elem.text:
+				parsed = wikitextparser.parse(text_elem.text)
+				try:
+					target_section = next(section for section in parsed.get_sections(level=2) if section.title == args.language)
+					text_elem.text = f'{parsed.get_sections(level=0)[0]}=={args.language}==\n{target_section.contents}'
+					page_xml = xet.tostring(page, encoding='unicode')
+					out_file.write('  ')
+					out_file.write(page_xml)
+					out_file.write('\n')
+				# no section for target language
+				except StopIteration:
+					pass
+			page.clear()
 
-				if args.verbose and count % VERBOSE_FACTOR == 0:
-					print(f'{count:,}')
-				count += 1
+			if args.verbose and count % VERBOSE_FACTOR == 0:
+				print(f'{count:,}')
+			count += 1
 
 		out_file.write('</mediawiki>\n')
 
