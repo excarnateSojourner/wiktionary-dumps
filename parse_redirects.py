@@ -55,7 +55,7 @@ def main():
 								# destination namespace does not exist
 								# encountered in 24-04-01 dump, possibly due to deletion of the concordance namespace
 								continue
-							dst_title = dst_ns + ':' + row[2].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
+							dst_title = (dst_ns + ':' if dst_ns else '') + row[2].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
 							try:
 								print(f'{row[0]}|{titles[int(row[0])]}|{ids[dst_title]}|{dst_title}', file=out_file)
 							except KeyError:
