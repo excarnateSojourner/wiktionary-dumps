@@ -8,7 +8,7 @@ import xml.etree.ElementTree as xet
 
 import etree_helpers
 
-VERBOSE_FACTOR = 10 ** 3
+VERBOSE_FACTOR = 10 ** 5
 
 def main():
 	parser = argparse.ArgumentParser()
