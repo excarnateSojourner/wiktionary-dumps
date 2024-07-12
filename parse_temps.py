@@ -28,7 +28,7 @@ def main():
 	for stub in parse_stubs.stubs_gen(args.stubs_path):
 		page_ids_to_titles[stub.id] = stub.title
 		if stub.ns == TEMPLATE_NAMESPACE:
-			temp_titles_to_ids[stub.title] = stub.id
+			temp_titles_to_ids[stub.title.removeprefix(TEMPLATE_PREFIX)] = stub.id
 
 	if args.verbose:
 		print(f'Reading link targets:')
@@ -41,6 +41,8 @@ def main():
 	if args.verbose:
 		print(f'Loaded {len(page_ids_to_titles)} page titles and {len(link_targets_to_temp_titles)} temp titles.')
 		print('Processing categories (SQL):')
+	missing_link_targets = {}
+	missing_temps = {}
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for template_links_count, link in enumerate(parse_sql(args.template_links_path)):
 			if args.verbose and template_links_count % SQL_VERBOSE_FACTOR * 10 == 0:
@@ -48,14 +50,18 @@ def main():
 			try:
 				temp_title, is_temp_ns = link_targets_to_temp_titles[link[2]]
 			except KeyError:
-				print(f'[{template_links_count:,}:] Link target {link[2]} not found in linktarget.sql.')
+				if link[2] not in missing_link_targets:
+					print(f'Warning: Link target {link[2]} not found in linktarget.sql ({template_links_count:,}).')
+					missing_link_targets.add(link[2])
 				continue
 			if temp_title.startswith('tracking/') or not is_temp_ns:
 				continue
 			try:
 				temp_id = temp_titles_to_ids[temp_title]
 			except KeyError:
-				print(f'[{template_links_count:,}:] Template {temp_title} is transcluded but does not exist.')
+				if temp_title not in missing_temps:
+					print(f'Warning: Template "{temp_title}" is transcluded but does not exist ({template_links_count:,}).')
+					missing_temps.add(temp_title)
 				continue
 			page_id = link[0]
 			try:
@@ -63,15 +69,15 @@ def main():
 			except KeyError:
 				print(f'[{template_links_count:,}:] Page with id {page_id} not found in page.sql.')
 				continue
-			print(f'{temp_id},{temp_title},{page_id},{page_title}', file=out_file)
+			print(f'{temp_id}|{temp_title}|{page_id}|{page_title}', file=out_file)
 
 def temps_gen(templates_path: str) -> collections.abc.Iterator[TempData]:
 	with open(templates_path, encoding='utf-8') as temps_file:
 		for line in temps_file:
-			fields = (line[:-1].split(',', maxsplit=3))
+			fields = (line[:-1].split('|', maxsplit=3))
 			yield TempData(temp_id=int(fields[0]), temp_title=fields[1], page_id=int(fields[2]), page_title=fields[3])
 
-def parse_sql(path: str, first_n: int = -1) -> collections.abc.Iterator[tuple[str]]:
+def parse_sql(path: str, first_n: int = -1) -> collections.abc.Iterator[tuple[str, ...]]:
 	with open(path, encoding='utf-8', errors='ignore') as sql_file:
 		for line in sql_file:
 			if line.startswith('INSERT INTO '):
