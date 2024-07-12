@@ -1,5 +1,6 @@
 import argparse
-import collections
+import collections.abc
+import re
 import xml.etree.ElementTree as xet
 
 import wikitextparser
@@ -8,8 +9,10 @@ import etree_helpers
 
 VERBOSE_FACTOR = 10 ** 4
 
-MONOPHONEMES = 'iuæɑɒɔəɚɛɜɝɪʊʌ' + 'bdfhjklmnpstvwzðŋɡɹɾʃʒθ'
-DIPHONEMES = {'aɪ', 'aʊ', 'eɪ', 'oʊ', 'ɔɪ', 'əʊ', 'ɛə', 'ɪə', 'ʊə'}
+TARGET_ACCENTS = {'Canada', 'CA', 'General American', 'GA', 'GenAm', 'United States', 'US'}
+REPLACEMENTS = {'əʊ': 'oʊ', 'ɒ': 'ɑ', 'ɝ': 'ɚ', 'ɪə': 'ɪɚ', '(ɹ)': 'ɹ'}
+MONOPHONEMES = 'iuæɑɔəɚɛɜɪʊʌ' + 'bdfhjklmnpstvwzðŋɡɹɾʃʒθ'
+DIPHONEMES = {'aɪ', 'aʊ', 'eɪ', 'oʊ', 'ɔɪ'}
 # the only ASCII char in NON_RHYME_CHARS is a space, even though others may appear to be ASCII
 EXTRANEOUS_CHARS = {
 	'.', # full stop for syllable boundaries
@@ -31,11 +34,9 @@ def main():
 	parser.add_argument('input_path')
 	parser.add_argument('pronunciation_path')
 	parser.add_argument('full_output_path')
-	parser.add_argument('-a', '--accents', nargs='+', help='Accents to consider valid. If omitted, all accents are considered valid.')
 	parser.add_argument('-w', '--warnings', action='store_true')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
-	target_accents = set(args.accents) if args.accents else None
 
 	with open(args.pronunciation_path, 'w', encoding='utf-8') as pronunciation_file:
 		with open(args.full_output_path, 'w', encoding='utf-8') as full_output_file:
@@ -51,12 +52,16 @@ def main():
 				for section in pron_sections:
 					pron_lists = section.get_lists(pattern=UNORDERED_LIST_PATTERN)
 					for lis in pron_lists:
-						prons.update(prons_from_wikilist(lis,word=page_title if args.warnings else None, accents=target_accents))
+						prons.update(prons_from_wikilist(lis,word=page_title if args.warnings else None, accents=TARGET_ACCENTS))
 					if prons:
 						pronunciation_file.write(f'{"\n".join(prons)}\n')
 						full_output_file.write(f'{page_title}: {", ".join(prons)}\n')
 
-def prons_from_wikilist(wikilist: wikitextparser.WikiList, word: str | None = None, accents: set[str] | None = None) -> set[str]:
+def prons_from_wikilist(wikilist: wikitextparser.WikiList, word: str | None = None, accents: collections.abc.Container[str] | None = None) -> set[str]:
+	'''
+	Extracts all the pronunciations in the chosen accents (if specified) from a WikiList.
+	If accents is not None it can be any container, but a set is recommended for efficiency.
+	'''
 	target_accents = accents
 	prons = set()
 
@@ -70,14 +75,22 @@ def prons_from_wikilist(wikilist: wikitextparser.WikiList, word: str | None = No
 						# skip the rest of the item (and any subitems)
 						break
 				case 'enpr':
-					found_accent = temp.get_arg('a')
-					if found_accent and not found_accent.islower() and found_accent not in target_accents:
-						break
+					if target_accents:
+						accent_arg = temp.get_arg('a')
+						if accent_arg:
+							found_accent = accent_arg.value
+							if found_accent and not found_accent.islower() and found_accent not in target_accents:
+								break
 				case 'ipa':
-					found_accent = temp.get_arg('a')
-					if found_accent and not found_accent.islower() and found_accent not in target_accents:
-						continue
-					for arg in (arg.value for arg in temp.arguments[1:] if arg.positional):
+					if target_accents:
+						accent_arg = temp.get_arg('a')
+						if accent_arg:
+							found_accent = accent_arg.value
+							if found_accent and not found_accent.islower() and found_accent not in target_accents:
+								continue
+
+					args = (arg.value for arg in temp.arguments[1:] if arg.positional)
+					for arg in args:
 						if not (arg.startswith('/') and arg.endswith('/')):
 							if not (arg.startswith('[') and arg.endswith(']')):
 								if word:
@@ -86,23 +99,28 @@ def prons_from_wikilist(wikilist: wikitextparser.WikiList, word: str | None = No
 						arg = arg.removeprefix('/').removesuffix('/')
 						if arg.startswith('-') or arg.endswith('-') or not arg:
 							continue
-						pron = []
-						while arg:
-							if any(arg.startswith(pho) for pho in DIPHONEMES):
-								pron.append(arg[:2])
-								arg = arg[2:]
-							elif arg[0] in MONOPHONEMES:
-								pron.append(arg[:1])
-								arg = arg[1:]
-							elif arg[0] in EXTRANEOUS_CHARS:
-								arg = arg[1:]
-							else:
-								if word:
-									fragment = arg[:1]
-									print(f'Warning: Rejecting pronunciation of "{word}" containing "{fragment}" ({fragment.encode("unicode_escape").decode()}).')
-								break
-						if not arg:
-							prons.add(''.join(pron))
+						for old, new in REPLACEMENTS.items():
+							arg = arg.replace(old, new)
+
+						for protopron in expand_parens(arg):
+							pron = []
+							while protopron:
+								if any(protopron.startswith(pho) for pho in DIPHONEMES):
+									pron.append(protopron[:2])
+									protopron = protopron[2:]
+								elif protopron[0] in MONOPHONEMES:
+									pron.append(protopron[:1])
+									protopron = protopron[1:]
+								elif protopron[0] in EXTRANEOUS_CHARS:
+									protopron = protopron[1:]
+								else:
+									if word:
+										fragment = protopron[:1]
+										print(f'Warning: Rejecting pronunciation of "{word}" containing "{fragment}" ({fragment.encode("unicode_escape").decode()}).')
+									break
+							# If all chars were valid
+							if not protopron:
+								prons.add(''.join(pron))
 
 		# if all accents were valid
 		else:
@@ -110,6 +128,20 @@ def prons_from_wikilist(wikilist: wikitextparser.WikiList, word: str | None = No
 				prons |= prons_from_wikilist(sublist)
 
 	return prons
+
+def expand_parens(pron):
+	'''Return a list of strings containing all combinations of including and excluding each of the parentheticals in pron.'''
+	parts = re.split(r'\(([^()])\)', pron, maxsplit=1)
+	# if no parentheticals
+	if len(parts) < 3:
+		return [pron]
+	# if parenthetical found
+	else:
+		combs = []
+		for comb in expand_parens(parts[2]):
+			combs.append(parts[0] + comb)
+			combs.append(parts[0] + parts[1] + comb)
+		return combs
 
 if __name__ == '__main__':
 	main()
