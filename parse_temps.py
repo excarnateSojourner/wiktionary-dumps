@@ -1,11 +1,11 @@
 import argparse
 import collections
+import collections.abc
 import re
 
 import parse_stubs
 
-PAGES_VERBOSE_FACTOR = 10 ** 4
-SQL_VERBOSE_FACTOR = 10 ** 6
+SQL_VERBOSE_FACTOR = 10 ** 7
 TEMPLATE_NAMESPACE = 10
 TEMPLATE_PREFIX = 'Template:'
 
@@ -34,27 +34,27 @@ def main():
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
 	for link_targets_count, link_target in enumerate(parse_sql(args.link_targets_path)):
-		link_targets_to_temp_titles[link_target[0]] = (clean_page_title(link_target[2]), int(link_target[1]) == TEMPLATE_NAMESPACE)
+		if int(link_target[1]) == TEMPLATE_NAMESPACE:
+			link_targets_to_temp_titles[int(link_target[0])] = clean_page_title(link_target[2])
 		if args.verbose and link_targets_count % SQL_VERBOSE_FACTOR == 0:
 			print(f'{link_targets_count:,}')
 
 	if args.verbose:
 		print(f'Loaded {len(page_ids_to_titles)} page titles and {len(link_targets_to_temp_titles)} temp titles.')
-		print('Processing categories (SQL):')
-	missing_link_targets = {}
-	missing_temps = {}
+		print('Processing template links:')
+	missing_temps = set()
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for template_links_count, link in enumerate(parse_sql(args.template_links_path)):
 			if args.verbose and template_links_count % SQL_VERBOSE_FACTOR * 10 == 0:
 				print(f'{template_links_count:,}')
+			page_id = int(link[0])
+			target_id = int(link[2])
 			try:
-				temp_title, is_temp_ns = link_targets_to_temp_titles[link[2]]
+				temp_title = link_targets_to_temp_titles[target_id]
 			except KeyError:
-				if link[2] not in missing_link_targets:
-					print(f'Warning: Link target {link[2]} not found in linktarget.sql ({template_links_count:,}).')
-					missing_link_targets.add(link[2])
+				# Not a template
 				continue
-			if temp_title.startswith('tracking/') or not is_temp_ns:
+			if temp_title.startswith('tracking/'):
 				continue
 			try:
 				temp_id = temp_titles_to_ids[temp_title]
@@ -63,11 +63,10 @@ def main():
 					print(f'Warning: Template "{temp_title}" is transcluded but does not exist ({template_links_count:,}).')
 					missing_temps.add(temp_title)
 				continue
-			page_id = link[0]
 			try:
 				page_title = page_ids_to_titles[page_id]
 			except KeyError:
-				print(f'[{template_links_count:,}:] Page with id {page_id} not found in page.sql.')
+				# I found this occurred many times in the 24-07-01 dump.
 				continue
 			print(f'{temp_id}|{temp_title}|{page_id}|{page_title}', file=out_file)
 
