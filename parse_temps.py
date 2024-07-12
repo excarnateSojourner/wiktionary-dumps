@@ -76,7 +76,7 @@ def parse_sql(path: str, first_n: int = -1) -> collections.abc.Iterator[tuple[st
 		for line in sql_file:
 			if line.startswith('INSERT INTO '):
 				try:
-					line_trimmed = re.match('INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
+					line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
 				# no match
 				except TypeError:
 					continue
