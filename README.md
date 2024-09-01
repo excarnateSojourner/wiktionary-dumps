@@ -1,5 +1,5 @@
 # Wiktionary
-These are scripts written to operate on data from Wiktionary, a free online dictionary.
+These are scripts written to operate on data from [Wiktionary](https://en.wiktionary.org/wiki/Wiktionary:Main_Page), a free online dictionary.
 
 ## Raw data
 The raw files available publicly at [Wikimedia Downloads](https://dumps.wikimedia.org/) are larger than GitHub's default upload limit of 2 GiB, so I have not included them here.
@@ -46,12 +46,24 @@ A CSV file in which each line consists of the id, namespace, and title of a page
 20|0|thesaurus
 ```
 
+### `parse_redirects`
+#### Purpose
+To convert redirect data from SQL to CSV to make it easier for other programs to work with.
+
+#### File inputs
+1. The SQL file named `redirect.sql` in the database dumps.
+1. A CSV file containing stubs, as created by `parse_stubs`.
+1. A pages file containing the ids and titles of Wiktionary's namespaces. Any of the pages files in the database dumps will work, but not after they have gone through `ns`.
+
+#### Output
+A CSV file containing redirect data. Each line gives a source page id, source page title, destination page id, and destination page title, all separated by vertical bars (`|`).
+
 ### `parse_cats`
 #### Purpose
 To convert category membership data from SQL to CSV to make it easier for other programs to work with Wiktionary's categories.
 
 #### File inputs
-1. The SQL file named "categorylinks.sql" in the data dumps.
+1. The SQL file named `categorylinks.sql` in the data dumps.
 1. A CSV file containing stubs, as produced by `parse_stubs`.
 
 #### Output
@@ -68,7 +80,9 @@ A CSV file containing a line for every category-page association. Each line cons
 To allow one to create lists of terms based on what categories they are in, what labels they have, what templates they use, what parts of speech they are, and / or whether they match a regex. For example, say you wanted a list of English nouns used in physics that consisted only of lowercase English letters, excluding any that are not used much anymore. `find_terms` can do this for you.
 
 #### File inputs
+1. A pages file containing at least those terms in the included categories.
 1. A CSV file describing category memberships as created by `parse_cats`.
+1. A CSV file containing redirect data, as created by `parse_redirects`.
 
 #### Output
 A list of all the terms that meet the criteria, one per line, in an output file.
