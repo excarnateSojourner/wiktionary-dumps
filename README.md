@@ -1,16 +1,15 @@
 # Wiktionary
-These are scripts written to operate on Wiktionary data, with some of their outputs.
+These are scripts written to operate on data from Wiktionary, a free online dictionary.
 
 ## Raw data
-The raw files available publicly at [Wikimedia Downloads](https://dumps.wikimedia.org/) are larger than GitHub's default upload limit of 2 GiB, so I have not included them here. If you want to download them yourself, the file names you should look for are `pages-meta-current.xml` (which contains the current text content of all pages) and `categorylinks.sql` (which indicates which pages are in which categories).
+The raw files available publicly at [Wikimedia Downloads](https://dumps.wikimedia.org/) are larger than GitHub's default upload limit of 2 GiB, so I have not included them here.
 
 ## Overview
-### Terminology
-* *pages file*: This is what I call the XML files in the data dumps like `pages-meta-current.xml` and `stub-meta-current.xml` that contain information about Wiktionary pages.
+The database dump files that these scripts parse are in XML and SQL format. I use the term ***pages file*** to refer to the XML files such as `pages-meta-current.xml` and `stub-meta-current.xml` that contain information about Wiktionary pages.
 
-### `ns.py`
+### `ns`
 #### Purpose
-To take a pages file and find all the pages in it that are in a particular namespace.
+To take a pages file and select all the pages in it that are in a particular namespace.
 
 #### File inputs
 1. A pages file.
@@ -18,9 +17,9 @@ To take a pages file and find all the pages in it that are in a particular names
 #### Output
 Another XML file containing only the pages in the specified namespace (and any other non-page data).
 
-### `lang.py`
+### `lang`
 #### Purpose
-To take a pages file containing mainspace pages (in other words the actual dictionary entries that contain definitions), and collect only the definitions for one language (defaults to English) from them.
+To take a pages file containing pages in Wiktionary's main namespace (in other words the actual dictionary entries that contain definitions), and collect only the definitions for one language (defaults to English) from them.
 
 #### File inputs
 1. A pages file.
@@ -28,12 +27,12 @@ To take a pages file containing mainspace pages (in other words the actual dicti
 #### Output
 Another pages file containing only the pages that had a section for the language specified, with all other language sections omitted.
 
-### `parseStubs.py`
+### `parse_stubs`
 #### Purpose
-To convert a pages file such as stub-meta-current.xml to a CSV file containing the ids, Wiktionary namespaces, and titles of Wiktionary pages.
+To convert a pages file such as `stub-meta-current.xml` to a CSV file containing the ids, Wiktionary namespaces, and titles of Wiktionary pages.
 
 #### File inputs
-1. The pages file containing stubs (i.e. ids, namespaces, and titles). The best file for this in the dumps is `stub-meta-current.xml`.
+1. The pages file containing stubs (i.e. ids, namespaces, and titles). The best file for this in the dumps is `stub-meta-current.xml` (but `pages-meta-current.xml` should also work).
 
 #### Output
 A CSV file in which each line consists of the id, namespace, and title of a page, separated by vertical bars (`|`). For example, here are a few of the first lines created from a data dump made in 2024-01 (with some similar lines removed):
@@ -47,16 +46,16 @@ A CSV file in which each line consists of the id, namespace, and title of a page
 20|0|thesaurus
 ```
 
-### `parseCats.py`
+### `parse_cats`
 #### Purpose
-To make it easier for other programs to work with Wiktionary's categories.
+To convert category membership data from SQL to CSV to make it easier for other programs to work with Wiktionary's categories.
 
 #### File inputs
 1. The SQL file named "categorylinks.sql" in the data dumps.
-1. A CSV file containing parsed stubs, as produced by `parseStubs.py`.
+1. A CSV file containing stubs, as produced by `parse_stubs`.
 
 #### Output
-A CSV file containing a line for every category-page association. Each line consists of the category ID, the category name (without the "Category:" prefix), the page ID, and the page name (with any appropriate namespace prefix), separated by vertical bars. As an example, the first few lines created from a data dump made in 2022-06 were:
+A CSV file containing a line for every category-page association. Each line consists of the category ID, the category name (without the "Category:" prefix), the page ID, and the page name (with any appropriate Wiktionary namespace prefix), separated by vertical bars. As an example, the first few lines created from a data dump made in 2022-06 were:
 
 ```csv
 227906|Wiktionary beginners|6|Wiktionary:Welcome, newcomers
@@ -64,20 +63,12 @@ A CSV file containing a line for every category-page association. Each line cons
 90507|Wiktionary|8|Wiktionary:Text of the GNU Free Documentation License
 ```
 
-### `deepCatFilter.py`
+### `find_terms`
 #### Purpose
-To allow one to create lists of terms based on what categories they are in. For example, say you wanted a list of all English multiword terms that are in full modern use. More specifically, you want all terms that are
-
-* in [Category:English multiword terms](https://en.wiktionary.org/wiki/Category:English_multiword_terms)
-* and not in any of
-   * [Category:English dated terms](https://en.wiktionary.org/wiki/Category:English_dated_terms)
-   * [Category:English archaic terms](https://en.wiktionary.org/wiki/Category:English_archaic_terms)
-   * [Category:English obsolete terms](https://en.wiktionary.org/wiki/Category:English_obsolete_terms)
-
-`deepCatFilter.py` can do this for you.
+To allow one to create lists of terms based on what categories they are in, what labels they have, what templates they use, what parts of speech they are, and / or whether they match a regex. For example, say you wanted a list of English nouns used in physics that consisted only of lowercase English letters, excluding any that are not used much anymore. `find_terms` can do this for you.
 
 #### File inputs
-1. A parsed categories CSV file as created by `parseCats.py`.
+1. A CSV file describing category memberships as created by `parse_cats`.
 
 #### Output
 A list of all the terms that meet the criteria, one per line, in an output file.
@@ -87,5 +78,5 @@ I have sometimes found it necessary on Windows to run Python like this:
 
 `python -u -X utf8 script.py --script-options`
 
-* `-u` ensures output is unbuffered. If I don't use this I find the verbose output of these scripts can get buffered until I kill Python, thinking it has frozen.
+* `-u` ensures output is unbuffered. If I don't use this I find the verbose output of these scripts can get buffered until I kill Python, thinking it has frozen. Even with this option, I sometimes find I get more output if I hit Enter every so often.
 * `-X utf8` ensures output is always in UTF-8, even when stdout is being piped to another command in Command Prompt.
