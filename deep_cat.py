@@ -60,24 +60,10 @@ def deep_cat_filter(
 		) -> set[int] | set[str]:
 	if verbose:
 		print('Looking for pages and subcategories in selected categories...')
-	# collect subcats to process in the next round
-	next_cats = set()
-	ever_selected_cats = select_cats.copy()
-	# collect non-cat pages in cats
-	select_pages = set()
-
-	depth = 0
-	while select_cats and (max_depth < 0 or depth <= max_depth):
-		for cat_id in select_cats:
-			new_subcats = cat_master.subcats(cat_id) - ever_selected_cats
-			next_cats |= new_subcats
-			ever_selected_cats |= new_subcats
-			select_pages |= cat_master.pages(cat_id, titles=return_titles)
-		select_cats = next_cats
-		next_cats = set()
-		depth += 1
-
-	return select_pages
+	pages = set()
+	for cat_id in select_cats:
+		pages |= cat_master.descendant_pages(cat_id, titles=return_titles)
+	return pages
 
 def deep_cat_filter_slow(
 		categories_path: str,

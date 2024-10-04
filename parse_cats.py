@@ -7,7 +7,9 @@ import parse_stubs
 
 STUBS_VERBOSE_FACTOR = 10 ** 6
 SQL_VERBOSE_FACTOR = 400
+# Master refers to CategoryMaster
 MASTER_VERBOSE_FACTOR = 10 ** 6
+# The MediaWiki category namespace ID
 CAT_NAMESPACE = 14
 CAT_PREFIX = 'Category:'
 
@@ -65,8 +67,13 @@ def cats_gen(categories_path: str) -> collections.abc.Iterator[CatLink]:
 
 class Cat():
 	def __init__(self):
+		# The first set contains the ids of subcategories; the second contains the titles of these same subcategories
 		self.subcats = (set(), set())
+		# The first set contains the ids of pages; the second contains the titles of these same pages
 		self.pages = (set(), set())
+
+	def __str__(self) -> str:
+		return f'Category ({len(self.subcats[0])} subcategories and {len(self.pages[0])} pages)'
 
 class CategoryMaster():
 	def __init__(self, categories_path: str, verbose: bool = False):
@@ -88,6 +95,19 @@ class CategoryMaster():
 
 	def pages(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
 		return self.cats[cat_id].pages[1 if titles else 0]
+
+	def descendant_cats(self, cat_id: int, max_depth: int = -1) -> set[int]:
+		des_cats = {cat_id}
+		if max_depth != 0:
+			for subcat in self.subcats(cat_id):
+				des_cats |= descendant_cats(subcat, max_depth - 1)
+		return des_cats
+
+	def descendant_pages(self, cat_id: int, titles: bool = False, max_depth: int = -1) -> set[int] | set[str]:
+		des_pages = set()
+		for cat_id in descendant_cats(cat_id, max_depth):
+			des_pages |= self.pages(cat_id, titles=titles)
+		return des_pages
 
 	def __len__(self):
 		return len(self.cats)
