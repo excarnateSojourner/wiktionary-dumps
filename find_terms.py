@@ -21,16 +21,18 @@ LABEL_TEMPS = {'label', 'lb', 'lbl'}
 def main() -> None:
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-c', '--config-path', help='The path of a JSON file containing arguments and options to use. All argument and option names are the same as the command-line ones, but spaces may be used in place of underscores and dashes. Command-line arguments can be used in addition to a config to override arguments and options in the config.')
-	parser.add_argument('-p', '--pages-path', help='The path of the pages file containing the page text of all terms in the included categories. Page text is used to follow form-of template links to the lemma (main form) of a term, which is likely categorized more completely than e.g. a plural or past tense verb.')
-	parser.add_argument('-a', '--cats-path', help='The path of the CSV categories file (as produced by parse_cats.py) that should be used to find subcategories of explicitly mentioned categories.')
-	parser.add_argument('-r', '--redirects-path', help='The path of the CSV redirects file produced by parse_redirects.py.')
-	parser.add_argument('-s', '--stubs-path', help='The path of the CSV stubs file (as produced by parse_stubs.py) containing page IDs and titles.')
-	parser.add_argument('-o', '--output-path', help='The path of the file to write the IDs of selected terms to.')
-	parser.add_argument('-i', '--include-cats', nargs='+', help='Categories from which to collect selected terms. At least one category must be given to generate the initial list of terms. These can either all be given as page titles, in which case --stubs-path is required to convert them to page IDs, or they can all be given as page IDs (in which case --stubs-path must *not* be given). If you want to include all terms in a language, you can do this by including the categories "[Language name] lemmas" and "[Language name] non-lemma forms".')
-	parser.add_argument('-e', '--exclude-cats', nargs='+', default=[], help='Terms in these categories will be excluded (overriding included categories).')
-	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. By default there is no limit (indicated by a negative value). Zero means just immediate children, one means children and grandchildren, and so on.')
+	parser.add_argument('-s', '--stubs-path', help='[required] The path of the CSV stubs file (as produced by parse_stubs.py) containing page IDs and titles.')
+	parser.add_argument('-r', '--redirects-path', help='[required] The path of the CSV redirects file produced by parse_redirects.py.')
+	parser.add_argument('-p', '--pages-path', help='[required] The path of the pages file containing the page text of all terms in the included categories. Page text is used to follow form-of template links to the lemma (main form) of a term, which is likely categorized more completely than e.g. a plural or past tense verb.')
+	parser.add_argument('-o', '--output-path', help='[required] The path of the file to write the IDs of selected terms to.')
+	# g is the first untaken letter in 'starting terms'
+	parser.add_argument('-g', '--initial-terms-path', help='The path of a text file containing an initial list of terms to start with, one term per line. Required if --cats-path and --include-cats are not given.')
+	parser.add_argument('-a', '--cats-path', help='The path of the CSV categories file (as produced by parse_cats.py) that should be used to find subcategories of explicitly mentioned categories. Required if --initial-terms-path is not given. Ignored if neither --include-cats nor --exclude-cats is given.')
+	parser.add_argument('-i', '--include-cats', nargs='+', help='[required] Categories from which to collect selected terms. At least one category must be given to generate the initial list of terms. These can either all be given as page titles, in which case --stubs-path is required to convert them to page IDs, or they can all be given as page IDs (in which case --stubs-path must *not* be given). If you want to include all terms in a language, you can do this by including the categories "[Language name] lemmas" and "[Language name] non-lemma forms". Required if --initial-terms-path is not given. Requires --cats-path.')
+	parser.add_argument('-e', '--exclude-cats', nargs='+', default=[], help='Terms in these categories (and their subcategories) will be excluded (overriding included categories). Requires --cats-path.')
+	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. By default there is no limit (indicated by a negative value). Zero means just immediate children, one means children and grandchildren, and so on. Ignored if neither --include-cats nor --exclude-cats is given.')
 	# m for memory
-	parser.add_argument('-m', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.)')
+	parser.add_argument('-m', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.) Ignored if neither --include-cats nor --exclude-cats is given.')
 	parser.add_argument('-x', '--regex', help='A regular expression that terms must fully match to be included. Matching is performed by Python\'s re.fullmatch(), so see that module\'s documentation for details. Note that the entire term must "fit within" the given regex, so if you want to find terms that merely *contain* a particular pattern, add .* at the beginning and end of your regex.')
 	parser.add_argument('-l', '--label-lang', default='en', help='The Wiktionary language code (usually the ISO 639 code) of the language for which to exclude labels. Defaults to "en" for English. Ignored if --exclude-labels is not also given.')
 	# b is the second letter in the commonly used alias {{lb}}
@@ -53,24 +55,58 @@ def main() -> None:
 		config = parser.parse_args()
 	else:
 		config = args
-	for arg in ['pages_path', 'cats_path', 'redirects_path', 'stubs_path', 'output_path', 'include_cats']:
-		if not hasattr(config, arg):
-			raise ValueError(f'Missing required argument --{arg.replace("_", "-")}')
+
+	required = ['stubs-path', 'redirects-path', 'pages-path', 'output_path']
+	for arg in required:
+		if not getattr(config, arg.replace('-', '_')):
+			raise ValueError(f'Missing required argument --{arg}')
+
+	# For each of these tuples at least of one of its arguments must be given
+	one_required = [
+		('initial-terms-path', 'include-cats'),
+		('temps-cache-path', 'cats-path')
+	]
+	for options in one_required:
+		if not any(getattr(config, opt.replace('-', '_')) for opt in options):
+			raise ValueError('At least one of the following must be given: ' + ', '.join(f'--{opt}' for opt in options))
+
+	# Each key requires that its value also be given
+	dependencies = {
+		'include-cats': 'cats-path',
+		'exclude-cats': 'cats-path',
+		'exclude-labels': 'label-lang'
+	}
+	for used, required in dependencies.items():
+		if getattr(config, used.replace('-', '_')) and not getattr(config, required.replace('-', '_')):
+			raise ValueError(f'--{used} requires --{required}')
 
 	if config.verbose:
 		print(f'Reading stubs...')
 	stub_master = parse_stubs.StubMaster(config.stubs_path)
 
-	include_cats = {stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in config.include_cats}
-	exclude_cats = {stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in config.exclude_cats}
-
-	if config.small_ram:
-		good_terms = deep_cat.deep_cat_filter_slow(config.cats_path, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
-		cat_bad_terms = deep_cat.deep_cat_filter_slow(config.cats_path, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
-	else:
+	if not config.small_ram:
 		cat_master = parse_cats.CategoryMaster(config.cats_path, verbose=config.verbose)
-		good_terms = deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
-		cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
+
+	good_terms = []
+	if config.initial_terms_path:
+		with open(config.initial_terms_path, encoding='utf-8') as initial_terms_file:
+			for line in initial_terms_file:
+				good_terms.append(stub_master.id(line[:-1]))
+
+	if config.include_cats:
+		include_cats = {stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in config.include_cats}
+		if config.small_ram:
+			good_terms.extend(deep_cat.deep_cat_filter_slow(config.cats_path, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose))
+		else:
+			good_terms.extend(deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose))
+	if config.exclude_cats:
+		exclude_cats = {stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in config.exclude_cats}
+		if config.small_ram:
+			cat_bad_terms = deep_cat.deep_cat_filter_slow(config.cats_path, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
+		else:
+			cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
+	else:
+		cat_bad_terms = set()
 
 	form_of_temps = None
 	if config.temps_cache_path:
@@ -87,9 +123,7 @@ def main() -> None:
 			form_of_temps = deep_cat.deep_cat_filter_slow(cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=verbose)
 		else:
 			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=verbose)
-
 	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects(form_of_temps, config.redirects_path)}
-
 	# Attempt to cache form-of templates
 	try:
 		with open(config.temps_cache_path, 'x', encoding='utf-8') as temps_cache_file:
