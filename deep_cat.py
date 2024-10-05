@@ -17,12 +17,14 @@ def main():
 	args = parser.parse_args()
 
 	if args.stubs_path:
-		select_cats = cat_titles_to_ids(args.cats, args.stubs_path, args.verbose)
-		if args.verbose:
-			print('If you want to select the same sets of categories later, and you want to provide their IDs instead of titles (so I do not have to translate to IDs for you), here are the IDs formatted as command-line arguments:')
-			print('-c ' + ' '.join(str(i) for i in cat_ids))
+		stub_master = parse_stubs.StubMaster(args.stubs_path)
+		select_cats = {(cat if cat.startswith(parse_cats.CAT_NAMESPACE_PREFIX) else stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat)) for cat in args.cats}
 	else:
-		select_cats = set(args.cats)
+		try:
+			select_cats = {int(id_) for id_ in args.cats}
+		except ValueError:
+			print('Error: It looks like you gave category titles (rather than IDs) but did not give --stubs-path (which is required in such a case).')
+			exit()
 
 	if args.small_ram:
 		select_pages = deep_cat_filter_slow(args.categories_path, select_cats, return_titles=not args.output_ids, max_depth=args.depth, verbose=args.verbose)
@@ -33,21 +35,6 @@ def main():
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for page in select_pages:
 			print(page, file=out_file)
-
-def cat_titles_to_ids(category_titles: collections.abc.Iterable[str], stubs_path: str, verbose: bool = False) -> list[int]:
-	if verbose:
-		print('Translating category names to ids...')
-	initial_includes = set((cat if cat.startswith(parse_cats.CAT_NAMESPACE_PREFIX) else parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in category_titles)
-	cat_ids = []
-
-	for stub in parse_stubs.stubs_gen(stubs_path):
-		if stub.title in initial_includes:
-			cat_ids.append(stub.id)
-			initial_includes.remove(stub.title)
-	if initial_includes:
-		print('I was unable to find pages for the following categories. This either means they do not exist (check your spelling) or the category pages have not been created.')
-		print(', '.join(initial_includes))
-	return cat_ids
 
 def deep_cat_filter(
 		cat_master: parse_cats.CategoryMaster,
@@ -89,7 +76,7 @@ def deep_cat_filter_slow(
 					if data.page_id not in ever_selected_cats:
 						next_cats.add(data.page_id)
 						ever_selected_cats.add(data.page_id)
-				# a page to select
+						print(data.page_title.removeprefix(parse_cats.CAT_NAMESPACE_PREFIX))
 				elif return_titles:
 					select_pages.add(data.page_title)
 				else:
