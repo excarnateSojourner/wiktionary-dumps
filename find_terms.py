@@ -12,7 +12,7 @@ import parse_cats
 import parse_redirects
 import parse_stubs
 
-PAGES_VERBOSITY_FACTOR = 10 ** 4
+PAGES_VERBOSITY_FACTOR = 10 ** 5
 TEMP_PREFIX = 'Template:'
 # The ID of Category:Form-of templates
 FORM_OF_TEMP_CAT_ID = 3991887
@@ -26,9 +26,9 @@ def main() -> None:
 	parser.add_argument('-p', '--pages-path', help='[required] The path of the pages file containing the page text of all terms in the included categories. Page text is used to follow form-of template links to the lemma (main form) of a term, which is likely categorized more completely than e.g. a plural or past tense verb.')
 	parser.add_argument('-o', '--output-path', help='[required] The path of the file to write the IDs of selected terms to.')
 	# g is the first untaken letter in 'starting terms'
-	parser.add_argument('-g', '--initial-terms-path', help='The path of a text file containing an initial list of terms to start with, one term per line. Required if --cats-path and --include-cats are not given.')
+	parser.add_argument('-g', '--initial-terms-path', help='The path of a text file containing an initial list of terms (or MediaWiki IDs of entries) to start with, one term per line. (If the first entry is numeric it will be assumed the terms are being given as entry IDs rather than the terms being given directly.) Required if --cats-path and --include-cats are not given.')
 	parser.add_argument('-a', '--cats-path', help='The path of the CSV categories file (as produced by parse_cats.py) that should be used to find subcategories of explicitly mentioned categories. Required if --initial-terms-path is not given. Ignored if neither --include-cats nor --exclude-cats is given.')
-	parser.add_argument('-i', '--include-cats', nargs='+', help='[required] Categories from which to collect selected terms. At least one category must be given to generate the initial list of terms. These can either all be given as page titles, in which case --stubs-path is required to convert them to page IDs, or they can all be given as page IDs (in which case --stubs-path must *not* be given). If you want to include all terms in a language, you can do this by including the categories "[Language name] lemmas" and "[Language name] non-lemma forms". Required if --initial-terms-path is not given. Requires --cats-path.')
+	parser.add_argument('-i', '--include-cats', nargs='+', help='[required] Categories from which to collect selected terms. If you want to include all terms in a language, you can do this by including the categories "[Language name] lemmas" and "[Language name] non-lemma forms". Required if --initial-terms-path is not given. Requires --cats-path.')
 	parser.add_argument('-e', '--exclude-cats', nargs='+', default=[], help='Terms in these categories (and their subcategories) will be excluded (overriding included categories). Requires --cats-path.')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. By default there is no limit (indicated by a negative value). Zero means just immediate children, one means children and grandchildren, and so on. Ignored if neither --include-cats nor --exclude-cats is given.')
 	# m for memory
@@ -43,7 +43,7 @@ def main() -> None:
 	# n for noun
 	parser.add_argument('-n', '--parts-of-speech', nargs='+', default=[], help='If a sense is not one of these parts of speech (think noun, verb, etc) then it will not support the inclusion of a term. Case insensitive.')
 	# u is the first untaken letter in 'output ids'
-	parser.add_argument('-u', '--output-ids', action='store_true', help='Output the MediaWiki IDs of the selected entries rather than the titles of the entries.')
+	parser.add_argument('-u', '--output-ids', action='store_true', help='Output the MediaWiki entry IDs of the selected entries rather than the titles of the entries.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
@@ -56,7 +56,7 @@ def main() -> None:
 	else:
 		config = args
 
-	required = ['stubs-path', 'redirects-path', 'pages-path', 'output_path']
+	required = ['stubs-path', 'redirects-path', 'pages-path', 'output-path']
 	for arg in required:
 		if not getattr(config, arg.replace('-', '_')):
 			raise ValueError(f'Missing required argument --{arg}')
@@ -70,7 +70,7 @@ def main() -> None:
 		if not any(getattr(config, opt.replace('-', '_')) for opt in options):
 			raise ValueError('At least one of the following must be given: ' + ', '.join(f'--{opt}' for opt in options))
 
-	# Each key requires that its value also be given
+	# Giving a key requires that its value also be given
 	dependencies = {
 		'include-cats': 'cats-path',
 		'exclude-cats': 'cats-path',
@@ -84,23 +84,38 @@ def main() -> None:
 		print(f'Reading stubs...')
 	stub_master = parse_stubs.StubMaster(config.stubs_path)
 
-	if not config.small_ram:
+	if config.cats_path and not config.small_ram:
 		cat_master = parse_cats.CategoryMaster(config.cats_path, verbose=config.verbose)
 
 	good_terms = []
 	if config.initial_terms_path:
 		with open(config.initial_terms_path, encoding='utf-8') as initial_terms_file:
-			for line in initial_terms_file:
-				good_terms.append(stub_master.id(line[:-1]))
+			first_line = next(initial_terms_file)[:-1]
+			try:
+				good_terms.append(int(first_line))
+				for line in initial_terms_file:
+					good_terms.append(int(line))
+			except ValueError:
+				good_terms.append(first_line)
+				for line in initial_terms_file:
+					good_terms.append(stub_master.id(line[:-1]))
+
+	def cat_titles_to_ids(titles: collections.abc.Iterable[str]) -> set[int]:
+		ids = set()
+		for title in titles:
+			if not title.startswith(parse_cats.CAT_NAMESPACE_PREFIX):
+				title = parse_cats.CAT_NAMESPACE_PREFIX + title
+			ids.add(stub_master.id(title))
+		return ids
 
 	if config.include_cats:
-		include_cats = {stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in config.include_cats}
+		include_cats = cat_titles_to_ids(config.include_cats)
 		if config.small_ram:
 			good_terms.extend(deep_cat.deep_cat_filter_slow(config.cats_path, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose))
 		else:
 			good_terms.extend(deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose))
 	if config.exclude_cats:
-		exclude_cats = {stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in config.exclude_cats}
+		exclude_cats = cat_titles_to_ids(config.exclude_cats)
 		if config.small_ram:
 			cat_bad_terms = deep_cat.deep_cat_filter_slow(config.cats_path, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
 		else:
@@ -132,10 +147,11 @@ def main() -> None:
 	except FileExistsError:
 		pass
 
-	if not config.small_ram:
+	if config.cats_path and not config.small_ram:
 		del cat_master
 
 	term_filter = TermFilter(
+		stub_master,
 		config.pages_path,
 		config.label_lang,
 		config.redirects_path,
@@ -161,6 +177,7 @@ def main() -> None:
 
 class TermFilter:
 	def __init__(self,
+			stub_master: parse_stubs.StubMaster,
 			pages_path: str,
 			label_lang: str,
 			redirects_path: str,
@@ -172,7 +189,8 @@ class TermFilter:
 			parts_of_speech: collections.abc.Container[str] | None = None,
 			verbose: bool = False):
 
-		# Set verbose first so it can be used by find_sense_temps
+		self.stub_master = stub_master
+		# Set verbose early so it can be used by find_sense_temps
 		self.verbose = verbose
 		self.sense_temps = self.find_sense_temps(pages_path, bad_terms, regex, parts_of_speech)
 		self.label_lang = label_lang
@@ -181,7 +199,15 @@ class TermFilter:
 		self.exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
 		self.cache = {id_: False for id_ in bad_terms} if bad_terms else {}
 
-	def check_entry(self, term_id: int, time_to_live: int = 4) -> bool:
+	def check_entry(self, term: int | str, time_to_live: int = 4) -> bool:
+		if isinstance(term, str):
+			try:
+				term_id = self.stub_master.id(term)
+			except KeyError:
+				return False
+		else:
+			term_id = term
+
 		if term_id not in self.cache:
 			self.cache[term_id] = self.check_uncached_term(term_id, time_to_live)
 		return self.cache[term_id]
@@ -217,7 +243,7 @@ class TermFilter:
 			bad_terms: collections.abc.Collection[int] | None = None,
 			regex: str | None = None,
 			parts_of_speech: collections.abc.Container[str] | None = None
-			) -> dict[str, list[list[wikitextparser.Template]]]:
+			) -> collections.defaultdict[str, list[list[wikitextparser.Template]], list]:
 
 		def temps_in_section(section: str) -> list[list[wikitextparser.Template]]:
 			return [wikitextparser.parse(line).templates for line in section.splitlines() if line.startswith('# ')]
