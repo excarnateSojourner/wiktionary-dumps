@@ -4,8 +4,6 @@ import collections
 import parse_cats
 import parse_stubs
 
-CAT_PREFIX = 'Category:'
-
 def main():
 	parser = argparse.ArgumentParser(description='Generate a list of all pages in a set of categories and their descendant categories.')
 	parser.add_argument('categories_path', help='Path of the parsed categories file that should be used to enumerate subcategories of explicitly mentioned categories.')
@@ -39,7 +37,7 @@ def main():
 def cat_titles_to_ids(category_titles: collections.abc.Iterable[str], stubs_path: str, verbose: bool = False) -> list[int]:
 	if verbose:
 		print('Translating category names to ids...')
-	initial_includes = set((cat if cat.startswith(CAT_PREFIX) else CAT_PREFIX + cat) for cat in category_titles)
+	initial_includes = set((cat if cat.startswith(parse_cats.CAT_NAMESPACE_PREFIX) else parse_cats.CAT_NAMESPACE_PREFIX + cat) for cat in category_titles)
 	cat_ids = []
 
 	for stub in parse_stubs.stubs_gen(stubs_path):
@@ -87,7 +85,7 @@ def deep_cat_filter_slow(
 			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
 		for data in parse_cats.cats_gen(categories_path):
 			if data.cat_id in select_cats:
-				if data.page_title.startswith(CAT_PREFIX):
+				if data.page_title.startswith(parse_cats.CAT_NAMESPACE_PREFIX):
 					if data.page_id not in ever_selected_cats:
 						next_cats.add(data.page_id)
 						ever_selected_cats.add(data.page_id)

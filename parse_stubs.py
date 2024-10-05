@@ -24,6 +24,19 @@ def main():
 			if args.verbose and count % VERBOSITY_FACTOR == 0:
 				print(f'{count:,}')
 
+class StubMaster():
+	def __init__(self, stubs_path: str):
+		self.ids_to_titles = {}
+		self.titles_to_ids = {}
+		for stub in stubs_gen(stubs_path):
+			self.ids_to_titles[stub.id] = stub.title
+			self.titles_to_ids[stub.title] = stub.id
+
+	def title(self, id_: int) -> str:
+		return self.ids_to_titles[id_]
+
+	def id(self, title: str) -> int:
+		return self.titles_to_ids[title]
 
 def stubs_gen(stubs_path: str) -> collections.abc.Iterator[Stub]:
 	with open(stubs_path, encoding='utf-8') as stubs_file:

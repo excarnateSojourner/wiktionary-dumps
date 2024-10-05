@@ -10,8 +10,8 @@ SQL_VERBOSE_FACTOR = 400
 # Master refers to CategoryMaster
 MASTER_VERBOSE_FACTOR = 10 ** 6
 # The MediaWiki category namespace ID
-CAT_NAMESPACE = 14
-CAT_PREFIX = 'Category:'
+CAT_NAMESPACE_ID = 14
+CAT_NAMESPACE_PREFIX = 'Category:'
 
 CatLink = collections.namedtuple('CatLink', ['cat_id', 'cat_title', 'page_id', 'page_title'])
 
@@ -29,8 +29,8 @@ def main():
 	cat_ids = {}
 	for stub_count, stub in enumerate(parse_stubs.stubs_gen(args.stubs_path)):
 		page_titles[stub.id] = stub.title
-		if stub.ns == CAT_NAMESPACE:
-			cat_ids[stub.title.removeprefix(CAT_PREFIX)] = stub.id
+		if stub.ns == CAT_NAMESPACE_ID:
+			cat_ids[stub.title.removeprefix(CAT_NAMESPACE_PREFIX)] = stub.id
 		if args.verbose:
 			if stub_count % STUBS_VERBOSE_FACTOR == 0:
 				print(f'{stub_count:,}')
@@ -81,7 +81,7 @@ class CategoryMaster():
 			print('Loading all categories:')
 		self.cats = collections.defaultdict(Cat)
 		for count, cat_data in enumerate(cats_gen(categories_path)):
-			if cat_data.page_title.startswith(CAT_PREFIX):
+			if cat_data.page_title.startswith(CAT_NAMESPACE_PREFIX):
 				self.cats[cat_data.cat_id].subcats[0].add(cat_data.page_id)
 				self.cats[cat_data.cat_id].subcats[1].add(cat_data.page_title)
 			else:
