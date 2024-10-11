@@ -1,28 +1,56 @@
 import argparse
 import collections
+import re
 import xml.etree.ElementTree as xet
 
 import etree_helpers
 
-VERBOSITY_FACTOR = 10 ** 5
+VERBOSITY_FACTOR = 10 ** 6
 
 Stub = collections.namedtuple('Stub', ['id', 'ns', 'title'])
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('pages_path', help='Path of the XML file containing id / title associations. The best file for this in the dumps is stub-meta-current.xml.')
+	parser.add_argument('input_path', help='Path of the XML or SQL file containing id / title associations. The best files for this in the dumps are stub-meta-current.xml and page.sql.')
 	parser.add_argument('output_path', help='Path of the CSV file write the parsed id / title associations to. (It will be created if it does not exist.)')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
-	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
-			stub = tuple(etree_helpers.find_child(page, child).text for child in ['id', 'ns', 'title'])
-			print('|'.join(stub), file=out_file)
-			page.clear()
+	if args.input_path.endswith('.xml'):
+		stubs = parse_from_xml(args.input_path)
+	elif args.input_path.endswith('.sql'):
+		stubs = parse_from_sql(args.input_path)
+	else:
+		raise ValueError('The input path must end with either ".xml" or ".sql" to indicate how it should be parsed.')
 
+	with open(args.output_path, 'w', encoding='utf-8') as out_file:
+		for count, stub in enumerate(stubs):
+			print(f'{stub.id}|{stub.ns}|{stub.title}', file=out_file)
 			if args.verbose and count % VERBOSITY_FACTOR == 0:
 				print(f'{count:,}')
+
+def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
+	for page in etree_helpers.pages_gen(xml_path):
+		yield Stub(*(etree_helpers.find_child(page, child).text for child in ['id', 'ns', 'title']))
+		page.clear()
+
+def parse_from_sql(sql_path: str) -> collections.abc.Iterator[Stub]:
+	'''Parse page.sql from the database dumps.'''
+	with open(sql_path, encoding='utf-8') as sql_file:
+		for sql_count, line in enumerate(sql_file):
+			if line.startswith('INSERT INTO '):
+				try:
+					line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
+				# no match
+				except TypeError:
+					continue
+				rows = [row.split(',', maxsplit=3)[:3] for row in line_trimmed.split('),(')]
+				for row in rows:
+					try:
+						yield Stub(int(row[0]), int(row[1]), row[2].replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'").replace('_', ' '))
+					# Imperfect SQL parsing can cause int conversion to fail
+					except ValueError:
+						pass
 
 class StubMaster():
 	def __init__(self, stubs_path: str):
