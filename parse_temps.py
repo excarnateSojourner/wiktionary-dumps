@@ -7,7 +7,7 @@ import parse_stubs
 
 SQL_VERBOSE_FACTOR = 10 ** 7
 TEMPLATE_NAMESPACE = 10
-TEMPLATE_PREFIX = 'Template:'
+TEMP_NAMESPACE_PREFIX = 'Template:'
 
 TempData = collections.namedtuple('TempData', ['temp_id', 'temp_title', 'page_id', 'page_title'])
 
@@ -21,14 +21,8 @@ def main():
 	args = parser.parse_args()
 
 	if args.verbose:
-		print('Loading title / id associations...')
-	temp_titles_to_ids = {}
-	page_ids_to_titles = {}
-	pages_count = 0
-	for stub in parse_stubs.stubs_gen(args.stubs_path):
-		page_ids_to_titles[stub.id] = stub.title
-		if stub.ns == TEMPLATE_NAMESPACE:
-			temp_titles_to_ids[stub.title.removeprefix(TEMPLATE_PREFIX)] = stub.id
+		print('Reading stubs ...')
+	stub_master = parse_stubs.StubMaster(args.stubs_path)
 
 	if args.verbose:
 		print(f'Reading link targets:')
@@ -40,7 +34,7 @@ def main():
 			print(f'{link_targets_count:,}')
 
 	if args.verbose:
-		print(f'Loaded {len(page_ids_to_titles)} page titles and {len(link_targets_to_temp_titles)} temp titles.')
+		print(f'Loaded {len(link_targets_to_temp_titles)} temp titles.')
 		print('Processing template links:')
 	missing_temps = set()
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
@@ -57,14 +51,14 @@ def main():
 			if temp_title.startswith('tracking/'):
 				continue
 			try:
-				temp_id = temp_titles_to_ids[temp_title]
+				temp_id = stub_master.id(TEMP_NAMESPACE_PREFIX + temp_title)
 			except KeyError:
 				if temp_title not in missing_temps:
-					print(f'Warning: Template "{temp_title}" is transcluded but does not exist ({template_links_count:,}).')
+					print(f'Warning: {TEMP_NAMESPACE_PREFIX}{temp_title} is transcluded but does not exist ({template_links_count:,}).')
 					missing_temps.add(temp_title)
 				continue
 			try:
-				page_title = page_ids_to_titles[page_id]
+				page_title = stub_master.title(page_id)
 			except KeyError:
 				# I found this occurred many times in the 24-07-01 dump.
 				continue
@@ -93,7 +87,7 @@ def parse_sql(path: str, first_n: int = -1) -> collections.abc.Iterator[tuple[st
 					yield row
 
 def clean_page_title(title: str) -> str:
-	return title.replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
+	return title.replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'").replace('_', ' ')
 
 if __name__ == '__main__':
 	main()

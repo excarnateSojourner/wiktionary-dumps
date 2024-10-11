@@ -24,15 +24,9 @@ def main():
 	ns_titles = etree_helpers.get_mw_namespaces(args.pages_path)
 
 	if args.verbose:
-		print('Loading ids and titles:')
+		print('Reading stubs...')
 	# ids and titles map the exact same data in opposite directions
-	titles = {}
-	ids = {}
-	for page_count, page in enumerate(parse_stubs.stubs_gen(args.stubs_path)):
-		titles[page.id] = page.title
-		ids[page.title] = page.id
-		if args.verbose and page_count % STUBS_VERBOSE_FACTOR == 0:
-			print(f'{page_count:,}')
+	stub_master = parse_stubs.StubMaster(args.stubs_path)
 
 	if args.verbose:
 		print('Reading redirect data (SQL) and writing output...')
@@ -57,7 +51,7 @@ def main():
 								continue
 							dst_title = (dst_ns + ':' if dst_ns else '') + row[2].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
 							try:
-								print(f'{row[0]}|{titles[int(row[0])]}|{ids[dst_title]}|{dst_title}', file=out_file)
+								print(f'{row[0]}|{stub_master.title(int(row[0]))}|{stub_master.id(dst_title)}|{dst_title}', file=out_file)
 							except KeyError:
 								# broken redirect
 								pass

@@ -24,19 +24,10 @@ def main():
 	args = parser.parse_args()
 
 	if args.verbose:
-		print('Loading stubs:')
-	page_titles = {}
-	cat_ids = {}
-	for stub_count, stub in enumerate(parse_stubs.stubs_gen(args.stubs_path)):
-		page_titles[stub.id] = stub.title
-		if stub.ns == CAT_NAMESPACE_ID:
-			cat_ids[stub.title.removeprefix(CAT_NAMESPACE_PREFIX)] = stub.id
-		if args.verbose:
-			if stub_count % STUBS_VERBOSE_FACTOR == 0:
-				print(f'{stub_count:,}')
+		print('Reading stubs...')
+	stub_master = parse_stubs.StubMaster(args.stubs_path)
 
 	if args.verbose:
-		print(f'Loaded {len(page_titles):,} page titles and {len(cat_ids):,} category ids.')
 		print('Processing categories (SQL):')
 	with open(args.sql_path, encoding='utf-8', errors='ignore') as sql_file:
 		with open(args.output_path, 'w', encoding='utf-8') as out_file:
@@ -49,10 +40,11 @@ def main():
 						continue
 					rows = [row.split(',', maxsplit=2)[:2] for row in line_trimmed.split('),(')]
 					for row in rows:
-						cat_title = row[1].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
+						cat_title = row[1].replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'").replace('_', ' ')
 						page_id = int(row[0])
+						cat_id = stub_master.id(CAT_NAMESPACE_PREFIX + cat_title)
 						try:
-							print(f'{cat_ids[cat_title]}|{cat_title}|{page_id}|{page_titles[page_id]}', file=out_file)
+							print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.title(page_id)}', file=out_file)
 						except KeyError:
 							# a category may not be found if it is in use but has no page
 							pass
