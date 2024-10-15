@@ -76,9 +76,9 @@ def main() -> None:
 		'exclude-cats': 'cats-path',
 		'exclude-labels': 'label-lang'
 	}
-	for used, required in dependencies.items():
-		if getattr(config, used.replace('-', '_')) and not getattr(config, required.replace('-', '_')):
-			raise ValueError(f'--{used} requires --{required}')
+	for used, req in dependencies.items():
+		if getattr(config, used.replace('-', '_')) and not getattr(config, req.replace('-', '_')):
+			raise ValueError(f'--{used} requires --{req}')
 
 	if config.verbose:
 		print(f'Reading stubs...')
@@ -87,16 +87,18 @@ def main() -> None:
 	if config.cats_path and not config.small_ram:
 		cat_master = parse_cats.CategoryMaster(config.cats_path, verbose=config.verbose)
 
-	good_terms = []
+	good_terms: list[int] = []
 	if config.initial_terms_path:
 		with open(config.initial_terms_path, encoding='utf-8') as initial_terms_file:
-			first_line = next(initial_terms_file)[:-1]
+			first_line = next(initial_terms_file)
+			# Assume entry IDs are being given
 			try:
 				good_terms.append(int(first_line))
 				for line in initial_terms_file:
 					good_terms.append(int(line))
+			# Terms are being given rather than entry IDs
 			except ValueError:
-				good_terms.append(first_line)
+				good_terms.append(first_line[:-1])
 				for line in initial_terms_file:
 					good_terms.append(stub_master.id(line[:-1]))
 
@@ -116,6 +118,7 @@ def main() -> None:
 			good_terms.extend(deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose))
 	if config.exclude_cats:
 		exclude_cats = cat_titles_to_ids(config.exclude_cats)
+		cat_bad_terms: set[int] = set()
 		if config.small_ram:
 			cat_bad_terms = deep_cat.deep_cat_filter_slow(config.cats_path, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
 		else:
@@ -123,7 +126,7 @@ def main() -> None:
 	else:
 		cat_bad_terms = set()
 
-	form_of_temps = None
+	form_of_temps: set[str] = set()
 	if config.temps_cache_path:
 		# Attempt to read form-of templates
 		try:
@@ -132,12 +135,12 @@ def main() -> None:
 		except FileNotFoundError:
 			pass
 	if not form_of_temps:
-		if verbose:
+		if args.verbose:
 			print('Finding all form-of templates and their aliases:')
 		if config.small_ram:
-			form_of_temps = deep_cat.deep_cat_filter_slow(cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=verbose)
+			form_of_temps = deep_cat.deep_cat_filter_slow(args.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=args.verbose)
 		else:
-			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=verbose)
+			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=args.verbose)
 	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects(form_of_temps, config.redirects_path)}
 	# Attempt to cache form-of templates
 	try:
@@ -168,12 +171,10 @@ def main() -> None:
 		print('Checking the senses of each term...')
 	good_terms = [entry_id for entry_id in good_terms if term_filter.check_entry(entry_id)]
 
-	if not config.output_ids:
-		good_terms = [stub_master.title(entry_id) for entry_id in good_terms]
-
 	with open(config.output_path, 'w', encoding='utf-8') as out_file:
-		for term in good_terms:
-			print(term, file=out_file)
+		for entry_id in good_terms:
+				print(entry_id if config.output_ids else stub_master.title(entry_id), file=out_file)
+
 
 class TermFilter:
 	def __init__(self,
@@ -195,8 +196,11 @@ class TermFilter:
 		self.sense_temps = self.find_sense_temps(pages_path, bad_terms, regex, parts_of_speech)
 		self.label_lang = label_lang
 		self.form_of_temps = form_of_temps or set()
-		self.exclude_labels = exclude_labels
-		self.exclude_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path)}
+		self.exclude_labels = exclude_labels or set()
+		self.exclude_temps: set[str] = set()
+		if exclude_temps:
+			for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path):
+				self.exclude_temps.add(temp.removeprefix(TEMP_PREFIX))
 		self.cache = {id_: False for id_ in bad_terms} if bad_terms else {}
 
 	def check_entry(self, term: int | str, time_to_live: int = 4) -> bool:
@@ -243,7 +247,7 @@ class TermFilter:
 			bad_terms: collections.abc.Collection[int] | None = None,
 			regex: str | None = None,
 			parts_of_speech: collections.abc.Container[str] | None = None
-			) -> collections.defaultdict[str, list[list[wikitextparser.Template]], list]:
+			) -> collections.defaultdict[str, list[list[wikitextparser.Template]]]:
 
 		def temps_in_section(section: str) -> list[list[wikitextparser.Template]]:
 			return [wikitextparser.parse(line).templates for line in section.splitlines() if line.startswith('# ')]

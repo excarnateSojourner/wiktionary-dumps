@@ -31,7 +31,16 @@ def main():
 
 def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
 	for page in etree_helpers.pages_gen(xml_path):
-		yield Stub(*(etree_helpers.find_child(page, child).text for child in ['id', 'ns', 'title']))
+		parts = []
+		for child_tag in ['id', 'ns', 'title']:
+			child = etree_helpers.find_child(page, child_tag)
+			if child:
+				parts.append(child)
+			else:
+				print('Warning: Skipping a page that is missing <{child_tag}>.')
+				break
+		if len(parts) == 3:
+			yield Stub(*parts)
 		page.clear()
 
 def parse_from_sql(sql_path: str) -> collections.abc.Iterator[Stub]:
@@ -39,10 +48,10 @@ def parse_from_sql(sql_path: str) -> collections.abc.Iterator[Stub]:
 	with open(sql_path, encoding='utf-8') as sql_file:
 		for sql_count, line in enumerate(sql_file):
 			if line.startswith('INSERT INTO '):
-				try:
-					line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
-				# no match
-				except TypeError:
+				line_match = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)
+				if line_match:
+					line_trimmed = line_match[1]
+				else:
 					continue
 				rows = [row.split(',', maxsplit=3)[:3] for row in line_trimmed.split('),(')]
 				for row in rows:

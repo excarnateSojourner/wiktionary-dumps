@@ -45,7 +45,7 @@ def deep_cat_filter(
 		) -> set[int] | set[str]:
 	if verbose:
 		print('Looking for pages and subcategories in selected categories...')
-	pages = set()
+	pages: set[int] | set[str] = set()
 	for cat_id in select_cats:
 		pages |= cat_master.descendant_pages(cat_id, titles=return_titles)
 	return pages

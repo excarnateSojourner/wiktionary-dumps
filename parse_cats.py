@@ -92,12 +92,12 @@ class CategoryMaster():
 		des_cats = {cat_id}
 		if max_depth != 0:
 			for subcat in self.subcats(cat_id):
-				des_cats |= descendant_cats(subcat, max_depth - 1)
+				des_cats |= self.descendant_cats(subcat, max_depth - 1)
 		return des_cats
 
 	def descendant_pages(self, cat_id: int, titles: bool = False, max_depth: int = -1) -> set[int] | set[str]:
-		des_pages = set()
-		for cat_id in descendant_cats(cat_id, max_depth):
+		des_pages: set[int] | set[str] = set()
+		for cat_id in self.descendant_cats(cat_id, max_depth):
 			des_pages |= self.pages(cat_id, titles=titles)
 		return des_pages
 
