@@ -39,8 +39,11 @@ def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
 			else:
 				print('Warning: Skipping a page that is missing <{child_tag}>.')
 				break
-		if len(parts) == 3:
-			yield Stub(*parts)
+		# Else branch of for loop
+		else:
+			stub = Stub(*parts)
+			ns_prefix, colon, stub.title = stub.title.rpartition(':')
+			yield stub
 		page.clear()
 
 def parse_from_sql(sql_path: str) -> collections.abc.Iterator[Stub]:
@@ -63,17 +66,22 @@ def parse_from_sql(sql_path: str) -> collections.abc.Iterator[Stub]:
 
 class StubMaster():
 	def __init__(self, stubs_path: str):
-		self.ids_to_titles = {}
-		self.titles_to_ids = {}
+		self.ids_to_ns_titles: dict[int, tuple[int, str]] = {}
+		self.ns_titles_to_ids: dict[int, dict[str, int]] = collections.defaultdict(dict)
 		for stub in stubs_gen(stubs_path):
-			self.ids_to_titles[stub.id] = stub.title
-			self.titles_to_ids[stub.title] = stub.id
+			self.ids_to_ns_titles[stub.id] = (stub.ns, stub.title)
+			self.ns_titles_to_ids[stub.ns][stub.title] = stub.id
+
+	def id(self, title: str, ns: int = 0) -> int:
+		# Remove namespace prefix if it is present
+		ns_prefix, colon, title = title.rpartition(':')
+		return self.ns_titles_to_ids[ns][title]
 
 	def title(self, id_: int) -> str:
-		return self.ids_to_titles[id_]
+		return self.ids_to_ns_titles[id_][1]
 
-	def id(self, title: str) -> int:
-		return self.titles_to_ids[title]
+	def ns(self, id_: int) -> int:
+		return self.ids_to_ns_titles[id_][0]
 
 def stubs_gen(stubs_path: str) -> collections.abc.Iterator[Stub]:
 	with open(stubs_path, encoding='utf-8') as stubs_file:

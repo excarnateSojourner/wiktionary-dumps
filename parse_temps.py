@@ -6,7 +6,7 @@ import re
 import parse_stubs
 
 SQL_VERBOSE_FACTOR = 10 ** 7
-TEMPLATE_NAMESPACE = 10
+TEMP_NAMESPACE_ID = 10
 TEMP_NAMESPACE_PREFIX = 'Template:'
 
 TempData = collections.namedtuple('TempData', ['temp_id', 'temp_title', 'page_id', 'page_title'])
@@ -28,7 +28,7 @@ def main():
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
 	for link_targets_count, link_target in enumerate(parse_sql(args.link_targets_path)):
-		if int(link_target[1]) == TEMPLATE_NAMESPACE:
+		if int(link_target[1]) == TEMP_NAMESPACE_ID:
 			link_targets_to_temp_titles[int(link_target[0])] = clean_page_title(link_target[2])
 		if args.verbose and link_targets_count % SQL_VERBOSE_FACTOR == 0:
 			print(f'{link_targets_count:,}')
@@ -51,7 +51,7 @@ def main():
 			if temp_title.startswith('tracking/'):
 				continue
 			try:
-				temp_id = stub_master.id(TEMP_NAMESPACE_PREFIX + temp_title)
+				temp_id = stub_master.id(temp_title, TEMP_NAMESPACE_ID)
 			except KeyError:
 				if temp_title not in missing_temps:
 					print(f'Warning: {TEMP_NAMESPACE_PREFIX}{temp_title} is transcluded but does not exist ({template_links_count:,}).')

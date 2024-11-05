@@ -44,14 +44,15 @@ def main():
 						# if an internal redirect
 						if len(row[3]) == 2:
 							try:
-								dst_ns = ns_titles[int(row[1])]
+								dst_ns_id = int(row[1])
+								dst_ns_prefix = (ns_titles[dst_ns_id] + ':' if dst_ns_id in ns_titles else '')
 							except KeyError:
 								# destination namespace does not exist
 								# encountered in 24-04-01 dump, possibly due to deletion of the concordance namespace
 								continue
-							dst_title = (dst_ns + ':' if dst_ns else '') + row[2].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
+							dst_title = row[2].replace('_', ' ').replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'")
 							try:
-								print(f'{row[0]}|{stub_master.title(int(row[0]))}|{stub_master.id(dst_title)}|{dst_title}', file=out_file)
+								print(f'{row[0]}|{stub_master.title(int(row[0]))}|{stub_master.id(dst_title)}|{dst_ns_prefix}{dst_title}', file=out_file)
 							except KeyError:
 								# broken redirect
 								pass

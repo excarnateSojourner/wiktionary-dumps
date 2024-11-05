@@ -9,7 +9,7 @@ def main():
 	parser.add_argument('categories_path', help='Path of the parsed categories file that should be used to enumerate subcategories of explicitly mentioned categories.')
 	parser.add_argument('output_path', help='Path of the file to write the IDs of pages in the categories to.')
 	parser.add_argument('-c', '--cats', '--categories', required=True, nargs='+', help='Categories to select. These can either all be given as page titles, in which case --stubs-path is required to convert them to page ids, or they can all be given as page IDs (in which case --stubs-path must *not* be given).')
-	parser.add_argument('-s', '--stubs-path', help='Path of the CSV file (as produced by parse_stubs.py) containing page IDs and titles. If given, this indicates that the categories to select have been specified using their IDs rather than their names. Specifying IDs removes the need for this program to perform time-intensive name-to-id translation.')
+	parser.add_argument('-s', '--stubs-path', help='Path of the CSV file (as produced by parse_stubs.py) containing page IDs and titles. If given, this indicates that the categories to select have been specified using their titles rather than their IDs. Specifying IDs removes the need for this program to perform time-intensive name-to-id translation.')
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Indicates that the output should be given as a list of IDs rather than a list of terms. Ignored if --pages-path is given (indicating that the text of entries should be processed as well).')
 	parser.add_argument('-d', '--depth', default=-1, type=int, help='The maximum depth to explore each category\'s descendants. Zero means just immediate children, one means children and grandchildren, etc. A negative value means no limit.')
 	parser.add_argument('-a', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.)')
@@ -18,7 +18,7 @@ def main():
 
 	if args.stubs_path:
 		stub_master = parse_stubs.StubMaster(args.stubs_path)
-		select_cats = {(cat if cat.startswith(parse_cats.CAT_NAMESPACE_PREFIX) else stub_master.id(parse_cats.CAT_NAMESPACE_PREFIX + cat)) for cat in args.cats}
+		select_cats = {stub_master.id(cat, parse_cats.CAT_NAMESPACE_ID) for cat in args.cats}
 	else:
 		try:
 			select_cats = {int(id_) for id_ in args.cats}

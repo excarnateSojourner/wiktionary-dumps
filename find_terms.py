@@ -105,9 +105,7 @@ def main() -> None:
 	def cat_titles_to_ids(titles: collections.abc.Iterable[str]) -> set[int]:
 		ids = set()
 		for title in titles:
-			if not title.startswith(parse_cats.CAT_NAMESPACE_PREFIX):
-				title = parse_cats.CAT_NAMESPACE_PREFIX + title
-			ids.add(stub_master.id(title))
+			ids.add(stub_master.id(title, parse_cats.CAT_NAMESPACE_ID))
 		return ids
 
 	if config.include_cats:

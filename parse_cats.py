@@ -42,11 +42,11 @@ def main():
 					for row in rows:
 						cat_title = row[1].replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'").replace('_', ' ')
 						page_id = int(row[0])
-						cat_id = stub_master.id(CAT_NAMESPACE_PREFIX + cat_title)
 						try:
+							cat_id = stub_master.id(cat_title, CAT_NAMESPACE_ID)
 							print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.title(page_id)}', file=out_file)
 						except KeyError:
-							# a category may not be found if it is in use but has no page
+							# A category may not be found if it is in use but has no page
 							pass
 				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
 					print(f'{sql_count:,}')
