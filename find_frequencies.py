@@ -48,6 +48,7 @@ def main():
 				print(f'{count:,}')
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
+		frequencies = {k: v for k, v in sorted(frequencies.items(), key=lambda item: item[1], reverse=True)}
 		json.dump(frequencies, out_file, indent='\t')
 
 if __name__ == '__main__':
