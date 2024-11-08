@@ -4,6 +4,7 @@ import re
 import xml.etree.ElementTree as xet
 
 import etree_helpers
+import sql_helpers
 
 VERBOSITY_FACTOR = 10 ** 6
 
@@ -19,7 +20,9 @@ def main():
 	if args.input_path.endswith('.xml'):
 		stubs = parse_from_xml(args.input_path)
 	elif args.input_path.endswith('.sql'):
-		stubs = parse_from_sql(args.input_path)
+		stubs = []
+		for row in sql_helpers.parse_sql(args.input_path):
+			stubs.append(Stub(row[0], row[1], row[2].replace('_', ' ')))
 	else:
 		raise ValueError('The input path must end with either ".xml" or ".sql" to indicate how it should be parsed.')
 
@@ -45,23 +48,6 @@ def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
 			ns_prefix, colon, stub.title = stub.title.rpartition(':')
 			yield stub
 		page.clear()
-
-def parse_from_sql(sql_path: str) -> collections.abc.Iterator[Stub]:
-	'''Parse page.sql from the database dumps.'''
-	with open(sql_path, encoding='utf-8') as sql_file:
-		for sql_count, line in enumerate(sql_file):
-			if line.startswith('INSERT INTO '):
-				line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES (.*?);', line[:-1])
-				if not line_match:
-					continue
-				values = line_match[1].replace('NULL', 'None')
-				rows = eval(f'[{values}]')
-				for row in rows:
-					try:
-						yield Stub(row[0], row[1], row[2].replace('_', ' '))
-					# Imperfect SQL parsing can cause int conversion to fail
-					except ValueError:
-						pass
 
 class StubMaster():
 	def __init__(self, stubs_path: str):

@@ -4,8 +4,9 @@ import collections.abc
 import re
 
 import parse_stubs
+import sql_helpers
 
-SQL_VERBOSE_FACTOR = 400
+SQL_VERBOSE_FACTOR = 10 ** 6
 # Master refers to CategoryMaster
 CAT_MASTER_VERBOSE_FACTOR = 10 ** 6
 # The MediaWiki category namespace ID
@@ -27,26 +28,17 @@ def main():
 
 	if args.verbose:
 		print('Processing categories (SQL):')
-	with open(args.sql_path, encoding='utf-8', errors='ignore') as sql_file:
-		with open(args.output_path, 'w', encoding='utf-8') as out_file:
-			for sql_count, line in enumerate(sql_file):
-				if line.startswith('INSERT INTO '):
-					line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES (.*?);', line[:-1])
-					if not line_match:
-						continue
-					values = line_match[1].replace('NULL', 'None')
-					rows = eval(f'[{values}]')
-					for row in rows:
-						cat_title = row[1].replace('_', ' ')
-						page_id = row[0]
-						try:
-							cat_id = stub_master.id(cat_title, CAT_NAMESPACE_ID)
-							print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.ns(page_id)}|{stub_master.title(page_id)}', file=out_file)
-						except KeyError:
-							# A category may not be found if it is in use but has no page
-							pass
-				if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
-					print(f'{sql_count:,}')
+		for row in sql_helpers.parse_sql(args.sql_path):
+			cat_title = row[1].replace('_', ' ')
+			page_id = row[0]
+			try:
+				cat_id = stub_master.id(cat_title, CAT_NAMESPACE_ID)
+				print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.ns(page_id)}|{stub_master.title(page_id)}', file=out_file)
+			except KeyError:
+				# A category may not be found if it is in use but has no page
+				pass
+			if args.verbose and sql_count % SQL_VERBOSE_FACTOR == 0:
+				print(f'{sql_count:,}')
 
 def cats_gen(categories_path: str) -> collections.abc.Iterator[CatLink]:
 	with open(categories_path, encoding='utf-8') as cats_file:

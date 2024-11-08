@@ -4,6 +4,7 @@ import collections.abc
 import re
 
 import parse_stubs
+import sql_helpers
 
 SQL_VERBOSE_FACTOR = 10 ** 7
 TEMP_NAMESPACE_ID = 10
@@ -27,9 +28,9 @@ def main():
 	if args.verbose:
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
-	for link_targets_count, link_target in enumerate(parse_sql(args.link_targets_path)):
+	for link_targets_count, link_target in enumerate(sql_helpers.parse_sql(args.link_targets_path)):
 		if link_target[1] == TEMP_NAMESPACE_ID:
-			link_targets_to_temp_titles[link_target[0]] = clean_page_title(link_target[2])
+			link_targets_to_temp_titles[link_target[0]] = link_target[2].replace('_', ' ')
 		if args.verbose and link_targets_count % SQL_VERBOSE_FACTOR == 0:
 			print(f'{link_targets_count:,}')
 
@@ -38,7 +39,7 @@ def main():
 		print('Processing template links:')
 	missing_temps = set()
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for template_links_count, link in enumerate(parse_sql(args.template_links_path)):
+		for template_links_count, link in enumerate(sql_helpers.parse_sql(args.template_links_path)):
 			if args.verbose and template_links_count % SQL_VERBOSE_FACTOR * 10 == 0:
 				print(f'{template_links_count:,}')
 			page_id = link[0]
@@ -69,21 +70,6 @@ def temps_gen(templates_path: str) -> collections.abc.Iterator[TempData]:
 		for line in temps_file:
 			fields = (line[:-1].split('|', maxsplit=3))
 			yield TempData(temp_id=int(fields[0]), temp_title=fields[1], page_id=int(fields[2]), page_title=fields[3])
-
-def parse_sql(path: str) -> collections.abc.Iterator[tuple[str, ...]]:
-	with open(path, encoding='utf-8', errors='ignore') as sql_file:
-		for line in sql_file:
-			if line.startswith('INSERT INTO '):
-				line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES (.*?);', line[:-1])
-				if not line_match:
-					continue
-				values = line_match[1].replace('NULL', 'None')
-				rows = eval(f'[{values}]')
-				for row in rows:
-					yield row
-
-def clean_page_title(title: str) -> str:
-	return title.replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'").replace('_', ' ')
 
 if __name__ == '__main__':
 	main()
