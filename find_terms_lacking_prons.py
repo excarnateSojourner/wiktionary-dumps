@@ -5,7 +5,7 @@ import wikitextparser
 
 import etree_helpers
 
-FREQUENCY_THRESHOLD = 16
+FREQUENCY_THRESHOLD = 256
 VERBOSE_FACTOR = 10 ** 5
 
 def main():
@@ -22,7 +22,7 @@ def main():
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
 			page_title = etree_helpers.find_child(page, 'title').text
-			if len(page_title) <= 4 and page_title.islower() and page_title.isalpha() and freqs.get(page_title.casefold(), 0) > FREQUENCY_THRESHOLD:
+			if page_title.isalnum() and not page_title.isupper() and not page_title.isnumeric() and freq(page_title) >= FREQUENCY_THRESHOLD:
 				text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
 				wikitext = wikitextparser.parse(text)
 				lang_section = next(sec for sec in wikitext.get_sections(level=2) if sec.title == 'English')
