@@ -51,15 +51,14 @@ def parse_from_sql(sql_path: str) -> collections.abc.Iterator[Stub]:
 	with open(sql_path, encoding='utf-8') as sql_file:
 		for sql_count, line in enumerate(sql_file):
 			if line.startswith('INSERT INTO '):
-				line_match = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)
-				if line_match:
-					line_trimmed = line_match[1]
-				else:
+				line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES (.*?);', line[:-1])
+				if not line_match:
 					continue
-				rows = [row.split(',', maxsplit=3)[:3] for row in line_trimmed.split('),(')]
+				values = line_match[1].replace('NULL', 'None')
+				rows = eval(f'[{values}]')
 				for row in rows:
 					try:
-						yield Stub(int(row[0]), int(row[1]), row[2].replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'").replace('_', ' '))
+						yield Stub(row[0], row[1], row[2].replace('_', ' '))
 					# Imperfect SQL parsing can cause int conversion to fail
 					except ValueError:
 						pass

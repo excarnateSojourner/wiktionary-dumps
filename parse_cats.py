@@ -31,15 +31,14 @@ def main():
 		with open(args.output_path, 'w', encoding='utf-8') as out_file:
 			for sql_count, line in enumerate(sql_file):
 				if line.startswith('INSERT INTO '):
-					try:
-						line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
-					# No match
-					except TypeError:
+					line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES (.*?);', line[:-1])
+					if not line_match:
 						continue
-					rows = [row.split(',', maxsplit=2)[:2] for row in line_trimmed.split('),(')]
+					values = line_match[1].replace('NULL', 'None')
+					rows = eval(f'[{values}]')
 					for row in rows:
-						cat_title = row[1].replace("\\'", "'").replace('\\"', '"').removeprefix("'").removesuffix("'").replace('_', ' ')
-						page_id = int(row[0])
+						cat_title = row[1].replace('_', ' ')
+						page_id = row[0]
 						try:
 							cat_id = stub_master.id(cat_title, CAT_NAMESPACE_ID)
 							print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.ns(page_id)}|{stub_master.title(page_id)}', file=out_file)

@@ -28,8 +28,8 @@ def main():
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
 	for link_targets_count, link_target in enumerate(parse_sql(args.link_targets_path)):
-		if int(link_target[1]) == TEMP_NAMESPACE_ID:
-			link_targets_to_temp_titles[int(link_target[0])] = clean_page_title(link_target[2])
+		if link_target[1] == TEMP_NAMESPACE_ID:
+			link_targets_to_temp_titles[link_target[0]] = clean_page_title(link_target[2])
 		if args.verbose and link_targets_count % SQL_VERBOSE_FACTOR == 0:
 			print(f'{link_targets_count:,}')
 
@@ -41,8 +41,8 @@ def main():
 		for template_links_count, link in enumerate(parse_sql(args.template_links_path)):
 			if args.verbose and template_links_count % SQL_VERBOSE_FACTOR * 10 == 0:
 				print(f'{template_links_count:,}')
-			page_id = int(link[0])
-			target_id = int(link[2])
+			page_id = link[0]
+			target_id = link[2]
 			try:
 				temp_title = link_targets_to_temp_titles[target_id]
 			except KeyError:
@@ -70,19 +70,15 @@ def temps_gen(templates_path: str) -> collections.abc.Iterator[TempData]:
 			fields = (line[:-1].split('|', maxsplit=3))
 			yield TempData(temp_id=int(fields[0]), temp_title=fields[1], page_id=int(fields[2]), page_title=fields[3])
 
-def parse_sql(path: str, first_n: int = -1) -> collections.abc.Iterator[tuple[str, ...]]:
+def parse_sql(path: str) -> collections.abc.Iterator[tuple[str, ...]]:
 	with open(path, encoding='utf-8', errors='ignore') as sql_file:
 		for line in sql_file:
 			if line.startswith('INSERT INTO '):
-				try:
-					line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
-				# no match
-				except TypeError:
+				line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES (.*?);', line[:-1])
+				if not line_match:
 					continue
-				if first_n <= 0:
-					rows = [row.split(',') for row in line_trimmed.split('),(')]
-				else:
-					rows = [row.split(',', maxsplit=first_n + 1)[:first_n] for row in line_trimmed.split('),(')]
+				values = line_match[1].replace('NULL', 'None')
+				rows = eval(f'[{values}]')
 				for row in rows:
 					yield row
 
