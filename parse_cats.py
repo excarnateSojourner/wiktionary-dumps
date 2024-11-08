@@ -5,15 +5,13 @@ import re
 
 import parse_stubs
 
-STUBS_VERBOSE_FACTOR = 10 ** 6
 SQL_VERBOSE_FACTOR = 400
 # Master refers to CategoryMaster
-MASTER_VERBOSE_FACTOR = 10 ** 6
+CAT_MASTER_VERBOSE_FACTOR = 10 ** 6
 # The MediaWiki category namespace ID
 CAT_NAMESPACE_ID = 14
-CAT_NAMESPACE_PREFIX = 'Category:'
 
-CatLink = collections.namedtuple('CatLink', ['cat_id', 'cat_title', 'page_id', 'page_title'])
+CatLink = collections.namedtuple('CatLink', ['cat_id', 'cat_title', 'page_id', 'page_ns', 'page_title'])
 
 def main():
 	parser = argparse.ArgumentParser(description='Converts a categorylinks.sql file to a more readable, flexible form.')
@@ -35,7 +33,7 @@ def main():
 				if line.startswith('INSERT INTO '):
 					try:
 						line_trimmed = re.match(r'INSERT INTO `\w*` VALUES \((.*)\);$', line)[1]
-					# no match
+					# No match
 					except TypeError:
 						continue
 					rows = [row.split(',', maxsplit=2)[:2] for row in line_trimmed.split('),(')]
@@ -44,7 +42,7 @@ def main():
 						page_id = int(row[0])
 						try:
 							cat_id = stub_master.id(cat_title, CAT_NAMESPACE_ID)
-							print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.title(page_id)}', file=out_file)
+							print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.ns(page_id)}|{stub_master.title(page_id)}', file=out_file)
 						except KeyError:
 							# A category may not be found if it is in use but has no page
 							pass
@@ -54,15 +52,14 @@ def main():
 def cats_gen(categories_path: str) -> collections.abc.Iterator[CatLink]:
 	with open(categories_path, encoding='utf-8') as cats_file:
 		for line in cats_file:
-			cat_id, cat_title, page_id, page_title = (line[:-1].split('|', maxsplit=3))
-			yield CatLink(int(cat_id), cat_title, int(page_id), page_title)
+			cat_id, cat_title, page_id, page_ns, page_title = (line[:-1].split('|', 4))
+			yield CatLink(int(cat_id), cat_title, int(page_id), int(page_ns), page_title)
 
 class Cat():
 	def __init__(self):
-		# The first set contains the ids of subcategories; the second contains the titles of these same subcategories
-		self.subcats = (set(), set())
-		# The first set contains the ids of pages; the second contains the titles of these same pages
-		self.pages = (set(), set())
+		# Maps page IDs of subcategories to their titles
+		self.subcats: dict[int, str] = {}
+		self.pages: set[parse_stubs.Stub] = set()
 
 	def __str__(self) -> str:
 		return f'Category ({len(self.subcats[0])} subcategories and {len(self.pages[0])} pages)'
@@ -72,24 +69,29 @@ class CategoryMaster():
 		if verbose:
 			print('Loading all categories:')
 		self.cats = collections.defaultdict(Cat)
-		for count, cat_data in enumerate(cats_gen(categories_path)):
-			if cat_data.page_title.startswith(CAT_NAMESPACE_PREFIX):
-				self.cats[cat_data.cat_id].subcats[0].add(cat_data.page_id)
-				self.cats[cat_data.cat_id].subcats[1].add(cat_data.page_title)
+		for count, cat_link in enumerate(cats_gen(categories_path)):
+			if cat_link.page_ns == CAT_NAMESPACE_ID:
+				self.cats[cat_link.cat_id].subcats[cat_link.page_id] = cat_link.page_title
 			else:
-				self.cats[cat_data.cat_id].pages[0].add(cat_data.page_id)
-				self.cats[cat_data.cat_id].pages[1].add(cat_data.page_title)
-			if verbose and count % MASTER_VERBOSE_FACTOR == 0:
+				self.cats[cat_link.cat_id].pages.add(parse_stubs.Stub(cat_link.page_id, cat_link.page_ns, cat_link.page_title))
+			if verbose and count % CAT_MASTER_VERBOSE_FACTOR == 0:
 				print(f'{count:,}')
 
 	def subcats(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
-		return self.cats[cat_id].subcats[1 if titles else 0]
+		if titles:
+			return set(self.cats[cat_id].subcats.values())
+		else:
+			return set(self.cats[cat_id].subcats.keys())
 
 	def pages(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
-		return self.cats[cat_id].pages[1 if titles else 0]
+		if titles:
+			return {stub.title for stub in self.cats[cat_id].pages}
+		else:
+			return {stub.id for stub in self.cats[cat_id].pages}
 
 	def descendant_cats(self, cat_id: int, max_depth: int = -1) -> set[int]:
 		des_cats = {cat_id}
+		# Purposefully continue if max_depth is negative
 		if max_depth != 0:
 			for subcat in self.subcats(cat_id):
 				des_cats |= self.descendant_cats(subcat, max_depth - 1)

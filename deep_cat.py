@@ -70,17 +70,17 @@ def deep_cat_filter_slow(
 	while select_cats and (max_depth < 0 or depth <= max_depth):
 		if verbose:
 			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
-		for data in parse_cats.cats_gen(categories_path):
-			if data.cat_id in select_cats:
-				if data.page_title.startswith(parse_cats.CAT_NAMESPACE_PREFIX):
-					if data.page_id not in ever_selected_cats:
-						next_cats.add(data.page_id)
-						ever_selected_cats.add(data.page_id)
-						print(data.page_title.removeprefix(parse_cats.CAT_NAMESPACE_PREFIX))
+		for cat_link in parse_cats.cats_gen(categories_path):
+			if cat_link.cat_id in select_cats:
+				if cat_link.page_ns == parse_cats.CAT_NAMESPACE_ID:
+					if cat_link.page_id not in ever_selected_cats:
+						next_cats.add(cat_link.page_id)
+						ever_selected_cats.add(cat_link.page_id)
+						print(cat_link.page_title)
 				elif return_titles:
-					select_pages.add(data.page_title)
+					select_pages.add(cat_link.page_title)
 				else:
-					select_pages.add(data.page_id)
+					select_pages.add(cat_link.page_id)
 		select_cats = next_cats
 		next_cats = set()
 		depth += 1
