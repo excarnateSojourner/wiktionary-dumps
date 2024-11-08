@@ -14,6 +14,7 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('pages_path', help='The pages file to read words from. It is recommended that ns.py be used to get just pages in namespaces 0 and 114 (Translation).')
 	parser.add_argument('-g', '--ids_path', help='A text file containing page IDs, one per line, which should have their words counted. If given all other pages will be ignored.')
+	parser.add_argument('-l', '--lowercase', action='store_true', help='Convert all words to lowercase before counting them, to avoid words at the beginning of sentences or in titles from being counted separately.')
 	parser.add_argument('output_path', help='The JSON file in which to write the word counts.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
@@ -39,7 +40,7 @@ def main():
 			for word in text.replace('-', ' ').split():
 				word = word.strip(string.punctuation)
 				if word and all(ch in VALID_CHARS for ch in word):
-					valid_words.append(word)
+					valid_words.append(word.casefold() if args.lowercase else word)
 			frequencies.update(valid_words)
 		# Just to catch continues
 		finally:
