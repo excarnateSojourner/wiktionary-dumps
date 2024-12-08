@@ -28,20 +28,16 @@ def main():
 	if args.verbose:
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
-	for link_targets_count, link_target in enumerate(sql_helpers.parse_sql(args.link_targets_path)):
+	for link_target in sql_helpers.parse_sql(args.link_targets_path, args.verbose):
 		if link_target[1] == TEMP_NAMESPACE_ID:
 			link_targets_to_temp_titles[link_target[0]] = link_target[2].replace('_', ' ')
-		if args.verbose and link_targets_count % SQL_VERBOSE_FACTOR == 0:
-			print(f'{link_targets_count:,}')
 
 	if args.verbose:
 		print(f'Loaded {len(link_targets_to_temp_titles)} temp titles.')
 		print('Processing template links:')
 	missing_temps = set()
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for template_links_count, link in enumerate(sql_helpers.parse_sql(args.template_links_path)):
-			if args.verbose and template_links_count % SQL_VERBOSE_FACTOR * 10 == 0:
-				print(f'{template_links_count:,}')
+		for link in sql_helpers.parse_sql(args.template_links_path, args.verbose):
 			page_id = link[0]
 			target_id = link[2]
 			try:

@@ -21,16 +21,14 @@ def main():
 		stubs = parse_from_xml(args.input_path)
 	elif args.input_path.endswith('.sql'):
 		stubs = []
-		for row in sql_helpers.parse_sql(args.input_path):
+		for row in sql_helpers.parse_sql(args.input_path, args.verbose):
 			stubs.append(Stub(row[0], row[1], row[2].replace('_', ' ')))
 	else:
 		raise ValueError('The input path must end with either ".xml" or ".sql" to indicate how it should be parsed.')
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for count, stub in enumerate(stubs):
+		for stub in stubs:
 			print(f'{stub.id}|{stub.ns}|{stub.title}', file=out_file)
-			if args.verbose and count % VERBOSITY_FACTOR == 0:
-				print(f'{count:,}')
 
 def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
 	for page in etree_helpers.pages_gen(xml_path):
