@@ -36,14 +36,14 @@ def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
 		for child_tag in ['id', 'ns', 'title']:
 			child = etree_helpers.find_child(page, child_tag)
 			if child:
-				parts.append(child)
+				parts.append(child.text)
 			else:
 				print('Warning: Skipping a page that is missing <{child_tag}>.')
 				break
 		# Else branch of for loop
 		else:
+			ns_prefix, colon, parts[2] = parts[2].rpartition(':')
 			stub = Stub(*parts)
-			ns_prefix, colon, stub.title = stub.title.rpartition(':')
 			yield stub
 		page.clear()
 

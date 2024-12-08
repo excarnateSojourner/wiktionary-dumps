@@ -90,7 +90,7 @@ def main() -> None:
 	good_terms: list[int] = []
 	if config.initial_terms_path:
 		with open(config.initial_terms_path, encoding='utf-8') as initial_terms_file:
-			first_line = next(initial_terms_file)
+			first_line = next(initial_terms_file)[:-1]
 			# Assume entry IDs are being given
 			try:
 				good_terms.append(int(first_line))
@@ -98,7 +98,7 @@ def main() -> None:
 					good_terms.append(int(line))
 			# Terms are being given rather than entry IDs
 			except ValueError:
-				good_terms.append(first_line[:-1])
+				good_terms.append(stub_master.id(first_line))
 				for line in initial_terms_file:
 					good_terms.append(stub_master.id(line[:-1]))
 
@@ -245,7 +245,7 @@ class TermFilter:
 			bad_terms: collections.abc.Collection[int] | None = None,
 			regex: str | None = None,
 			parts_of_speech: collections.abc.Container[str] | None = None
-			) -> collections.defaultdict[str, list[list[wikitextparser.Template]]]:
+			) -> collections.defaultdict[int, list[list[wikitextparser.Template]]]:
 
 		def temps_in_section(section: str) -> list[list[wikitextparser.Template]]:
 			return [wikitextparser.parse(line).templates for line in section.splitlines() if line.startswith('# ')]
@@ -261,7 +261,7 @@ class TermFilter:
 			if not (bad_terms and page_id in bad_terms) and not (regex and not re.fullmatch(regex, page_title)):
 				if parts_of_speech:
 					# Assume lang has removed all L2 sections except for the relevant one
-					wikitext = wikitextparser.parse(page_text).get_sections(level=2)[0]
+					wikitext: wikitextparser.Section = wikitextparser.parse(page_text).get_sections(level=2)[0]
 					for section in wikitext.get_sections(level=3):
 						# Multiple etymologies
 						if re.fullmatch(r'Etymology \d+', section.title):
