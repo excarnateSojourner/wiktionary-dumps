@@ -3,7 +3,7 @@ import json
 
 import wikitextparser
 
-import etree_helpers
+import parsing.etree_helpers
 
 FREQUENCY_THRESHOLD = 256
 VERBOSE_FACTOR = 10 ** 5
@@ -24,12 +24,12 @@ def main():
 		return frequencies.get(page_title.casefold() if args.lowercase else page_title, 0)
 
 	terms_lacking_prons = []
-	for count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
-		page_title = etree_helpers.find_child(page, 'title').text
+	for count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
+		page_title = parsing.etree_helpers.find_child(page, 'title').text
 		# All-caps terms tend to be acronyms, pronounced as their individual letters
 		# Numeric terms tend to be pronounced as numbers or digits
 		if ' ' not in page_title and '-' not in page_title and not page_title.isupper() and not page_title.isnumeric() and freq(page_title) >= FREQUENCY_THRESHOLD:
-			text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
 			wikitext = wikitextparser.parse(text)
 			lang_section = next(sec for sec in wikitext.get_sections(level=2) if sec.title == 'English')
 			if not any(section.title == 'Pronunciation' and 3 <= section.level <= 5 for section in lang_section.sections):

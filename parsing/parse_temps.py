@@ -3,8 +3,8 @@ import collections
 import collections.abc
 import re
 
-import parse_stubs
-import sql_helpers
+import parsing.parse_stubs
+import parsing.sql_helpers
 
 SQL_VERBOSE_FACTOR = 10 ** 7
 TEMP_NAMESPACE_ID = 10
@@ -23,12 +23,12 @@ def main():
 
 	if args.verbose:
 		print('Reading stubs ...')
-	stub_master = parse_stubs.StubMaster(args.stubs_path)
+	stub_master = parsing.parse_stubs.StubMaster(args.stubs_path)
 
 	if args.verbose:
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
-	for link_target in sql_helpers.parse_sql(args.link_targets_path, args.verbose):
+	for link_target in parsing.sql_helpers.parse_sql(args.link_targets_path, args.verbose):
 		if link_target[1] == TEMP_NAMESPACE_ID:
 			link_targets_to_temp_titles[link_target[0]] = link_target[2].replace('_', ' ')
 
@@ -37,7 +37,7 @@ def main():
 		print('Processing template links:')
 	missing_temps = set()
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for link in sql_helpers.parse_sql(args.template_links_path, args.verbose):
+		for link in parsing.sql_helpers.parse_sql(args.template_links_path, args.verbose):
 			page_id = link[0]
 			target_id = link[2]
 			try:

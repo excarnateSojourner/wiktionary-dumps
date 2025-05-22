@@ -3,8 +3,8 @@ import collections
 import re
 import xml.etree.ElementTree as xet
 
-import etree_helpers
-import sql_helpers
+import parsing.etree_helpers
+import parsing.sql_helpers
 
 VERBOSITY_FACTOR = 10 ** 6
 
@@ -21,7 +21,7 @@ def main():
 		stubs = parse_from_xml(args.input_path)
 	elif args.input_path.endswith('.sql'):
 		stubs = []
-		for row in sql_helpers.parse_sql(args.input_path, args.verbose):
+		for row in parsing.sql_helpers.parse_sql(args.input_path, args.verbose):
 			stubs.append(Stub(row[0], row[1], row[2].replace('_', ' ')))
 	else:
 		raise ValueError('The input path must end with either ".xml" or ".sql" to indicate how it should be parsed.')
@@ -31,10 +31,10 @@ def main():
 			print(f'{stub.id}|{stub.ns}|{stub.title}', file=out_file)
 
 def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
-	for page in etree_helpers.pages_gen(xml_path):
+	for page in parsing.etree_helpers.pages_gen(xml_path):
 		parts = []
 		for child_tag in ['id', 'ns', 'title']:
-			child = etree_helpers.find_child(page, child_tag)
+			child = parsing.etree_helpers.find_child(page, child_tag)
 			if child:
 				parts.append(child.text)
 			else:

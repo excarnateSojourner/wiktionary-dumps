@@ -1,8 +1,8 @@
 import argparse
 import collections
 
-import parse_cats
-import parse_stubs
+import parsing.parse_cats
+import parsing.parse_stubs
 
 def main():
 	parser = argparse.ArgumentParser(description='Generate a list of all pages in a set of categories and their descendant categories.')
@@ -17,8 +17,8 @@ def main():
 	args = parser.parse_args()
 
 	if args.stubs_path:
-		stub_master = parse_stubs.StubMaster(args.stubs_path)
-		select_cats = {stub_master.id(cat, parse_cats.CAT_NAMESPACE_ID) for cat in args.cats}
+		stub_master = parsing.parse_stubs.StubMaster(args.stubs_path)
+		select_cats = {stub_master.id(cat, parsing.parse_cats.CAT_NAMESPACE_ID) for cat in args.cats}
 	else:
 		try:
 			select_cats = {int(id_) for id_ in args.cats}
@@ -29,7 +29,7 @@ def main():
 	if args.small_ram:
 		select_pages = deep_cat_filter_slow(args.categories_path, select_cats, return_titles=not args.output_ids, max_depth=args.depth, verbose=args.verbose)
 	else:
-		cat_master = parse_cats.CategoryMaster(args.categories_path, verbose=args.verbose)
+		cat_master = parsing.parse_cats.CategoryMaster(args.categories_path, verbose=args.verbose)
 		select_pages = deep_cat_filter(cat_master, select_cats, return_titles=not args.output_ids, max_depth=args.depth, verbose=args.verbose)
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
@@ -37,7 +37,7 @@ def main():
 			print(page, file=out_file)
 
 def deep_cat_filter(
-		cat_master: parse_cats.CategoryMaster,
+		cat_master: parsing.parse_cats.CategoryMaster,
 		select_cats: set[int],
 		return_titles: bool = False,
 		max_depth: int = -1,
@@ -70,9 +70,9 @@ def deep_cat_filter_slow(
 	while select_cats and (max_depth < 0 or depth <= max_depth):
 		if verbose:
 			print('', '-' * 10, f'Round {depth}', '-' * 10, sep='\n')
-		for cat_link in parse_cats.cats_gen(categories_path):
+		for cat_link in parsing.parse_cats.cats_gen(categories_path):
 			if cat_link.cat_id in select_cats:
-				if cat_link.page_ns == parse_cats.CAT_NAMESPACE_ID:
+				if cat_link.page_ns == parsing.parse_cats.CAT_NAMESPACE_ID:
 					if cat_link.page_id not in ever_selected_cats:
 						next_cats.add(cat_link.page_id)
 						ever_selected_cats.add(cat_link.page_id)

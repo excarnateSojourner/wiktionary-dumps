@@ -8,8 +8,8 @@ import xml.etree.ElementTree as xet
 
 import wikitextparser
 
-import etree_helpers
-import parse_cats
+import parsing.etree_helpers
+import parsing.parse_cats
 
 CAT_VERBOSE_FACTOR = 10 ** 6
 PAGE_VERBOSE_FACTOR = 10 ** 5
@@ -28,7 +28,7 @@ def main():
 	if args.verbose:
 		print('Reading in category data:')
 	if args.cats_path:
-		for cat_count, cat_link in enumerate(parse_cats.cats_gen(args.cats_path)):
+		for cat_count, cat_link in enumerate(parsing.parse_cats.cats_gen(args.cats_path)):
 			if cat_link.cat_title in target_cats:
 				target_pages.add(cat_link.page_id)
 			if args.verbose and cat_count % CAT_VERBOSE_FACTOR == 0:
@@ -40,14 +40,14 @@ def main():
 		print('Filtering pages:')
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		out_file.write('<mediawiki>\n  ')
-		for page_count, page in enumerate(etree_helpers.pages_gen(args.input_path)):
+		for page_count, page in enumerate(parsing.etree_helpers.pages_gen(args.input_path)):
 			is_target = False
 			if args.cats_path:
-				page_id = int(etree_helpers.find_child(page, 'id').text)
+				page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
 				if page_id in target_pages:
 					is_target = True
 			else:
-				text_elem = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text')
+				text_elem = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text')
 				# Perform a fast substring search first to avoid parsing most irrelevant pages
 				if args.language in text_elem.text:
 					parsed = wikitextparser.parse(text_elem.text)

@@ -11,7 +11,7 @@ import xml.etree.ElementTree as xet
 
 import wikitextparser
 
-import etree_helpers
+import parsing.etree_helpers
 
 VERBOSE_FACTOR = 10 ** 5
 
@@ -58,14 +58,14 @@ def main():
 
 	prons: set[str] = set()
 	with open(args.full_output_path, 'w', encoding='utf-8') as full_output_file:
-		for count, page in enumerate(etree_helpers.pages_gen(args.input_path)):
+		for count, page in enumerate(parsing.etree_helpers.pages_gen(args.input_path)):
 			try:
 				if args.ids_path:
-					page_id = int(etree_helpers.find_child(page, 'id').text)
+					page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
 					if page_id not in target_ids:
 						continue
-				page_title = etree_helpers.find_child(page, 'title').text
-				text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+				page_title = parsing.etree_helpers.find_child(page, 'title').text
+				text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
 				wikitext = wikitextparser.parse(text)
 				pron_sections = (sec for sec in wikitext.sections if 3 <= sec.level <= 4 and sec.title == 'Pronunciation')
 				entry_prons: set[str] = set()

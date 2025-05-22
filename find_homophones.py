@@ -4,7 +4,7 @@ import re
 
 import wikitextparser
 
-import etree_helpers
+import parsing.etree_helpers
 
 VERBOSE_FACTOR = 10 ** 5
 HMP_ALIASES = ['hmp', 'homophone', 'homophones']
@@ -26,14 +26,14 @@ def main() -> None:
 	# Maps prons to homophone data
 	# Homophone data maps each term with the specified pronunciation to the set of other terms that are already listed as its homophones
 	prons_to_titles: dict[str, dict[str, set[str]]] = collections.defaultdict(dict)
-	for count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
+	for count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
 		try:
 			if args.target_ids_path:
-				page_id = int(etree_helpers.find_child(page, 'id').text)
+				page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
 				if page_id not in target_ids:
 					continue
-			title = etree_helpers.find_child(page, 'title').text
-			text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+			title = parsing.etree_helpers.find_child(page, 'title').text
+			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
 			wikitext = wikitextparser.parse(text)
 			pron_sections = [sec for sec in wikitext.sections if 3 <= sec.level <= 4 and sec.title.strip() == 'Pronunciation']
 			for section in pron_sections:

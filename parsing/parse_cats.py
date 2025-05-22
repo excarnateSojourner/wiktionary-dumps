@@ -3,8 +3,8 @@ import collections
 import collections.abc
 import re
 
-import parse_stubs
-import sql_helpers
+import parsing.parse_stubs
+import parsing.sql_helpers
 
 # Master refers to CategoryMaster
 CAT_MASTER_VERBOSE_FACTOR = 10 ** 6
@@ -23,12 +23,12 @@ def main() -> None:
 
 	if args.verbose:
 		print('Reading stubs...')
-	stub_master = parse_stubs.StubMaster(args.stubs_path)
+	stub_master = parsing.parse_stubs.StubMaster(args.stubs_path)
 
 	if args.verbose:
 		print('Processing categories (SQL):')
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for row in sql_helpers.parse_sql(args.sql_path, args.verbose):
+		for row in parsing.sql_helpers.parse_sql(args.sql_path, args.verbose):
 			cat_title = row[1].replace('_', ' ')
 			page_id = row[0]
 			try:
@@ -48,7 +48,7 @@ class Cat():
 	def __init__(self):
 		# Maps page IDs of subcategories to their titles
 		self.subcats: dict[int, str] = {}
-		self.pages: set[parse_stubs.Stub] = set()
+		self.pages: set[parsing.parse_stubs.Stub] = set()
 
 	def __str__(self) -> str:
 		return f'Category ({len(self.subcats)} subcategories and {len(self.pages)} pages)'
@@ -62,7 +62,7 @@ class CategoryMaster():
 			if cat_link.page_ns == CAT_NAMESPACE_ID:
 				self.cats[cat_link.cat_id].subcats[cat_link.page_id] = cat_link.page_title
 			else:
-				self.cats[cat_link.cat_id].pages.add(parse_stubs.Stub(cat_link.page_id, cat_link.page_ns, cat_link.page_title))
+				self.cats[cat_link.cat_id].pages.add(parsing.parse_stubs.Stub(cat_link.page_id, cat_link.page_ns, cat_link.page_title))
 			if verbose and count % CAT_MASTER_VERBOSE_FACTOR == 0:
 				print(f'{count:,}')
 

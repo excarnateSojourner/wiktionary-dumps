@@ -6,7 +6,7 @@ import re
 
 import wikitextparser
 
-import etree_helpers
+import parsing.etree_helpers
 
 VERBOSITY_FACTOR = 10 ** 5
 GOOD_PARTS_OF_SPEECH = ['adjective', 'adverb', 'interjection', 'noun', 'verb']
@@ -65,14 +65,14 @@ def main():
 	if args.verbose:
 		print('Reading entries:')
 	word_rhymes = collections.defaultdict(dict)
-	for page_count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
+	for page_count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
 		try:
-			page_id = int(etree_helpers.find_child(page, 'id').text)
-			page_title = etree_helpers.find_child(page, 'title').text
+			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
+			page_title = parsing.etree_helpers.find_child(page, 'title').text
 			# [!-~] matches all printable, non-whitespace ASCII characters
 			if not re.fullmatch(r'[!-~]+', page_title):
 				continue
-			text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
 			wikitext = wikitextparser.parse(text)
 			lang_sec = next(sec for sec in wikitext.get_sections(level=2) if sec.title == args.language)
 

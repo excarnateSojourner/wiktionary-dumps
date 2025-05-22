@@ -6,7 +6,7 @@ import string
 
 import wikitextparser
 
-import etree_helpers
+import parsing.etree_helpers
 
 VERBOSE_FACTOR = 10 ** 4
 VALID_CHARS = string.ascii_letters + string.digits + "'"
@@ -26,12 +26,12 @@ def main():
 
 	frequencies = collections.Counter()
 	total_words = 0
-	for count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
+	for count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
 		try:
-			page_id = int(etree_helpers.find_child(page, 'id').text)
+			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
 			if page_id not in good_ids:
 				continue
-			raw_text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+			raw_text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
 			if not raw_text:
 				continue
 			try:

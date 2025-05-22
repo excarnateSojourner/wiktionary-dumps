@@ -3,8 +3,8 @@ import collections
 import collections.abc
 import re
 
-import parse_stubs
-import etree_helpers
+import parsing.parse_stubs
+import parsing.etree_helpers
 
 STUBS_VERBOSE_FACTOR = 10 ** 6
 
@@ -21,12 +21,12 @@ def main():
 
 	if args.verbose:
 		print('Loading namespace prefixes...')
-	ns_titles = etree_helpers.get_mw_namespaces(args.pages_path)
+	ns_titles = parsing.etree_helpers.get_mw_namespaces(args.pages_path)
 
 	if args.verbose:
 		print('Reading stubs...')
 	# ids and titles map the exact same data in opposite directions
-	stub_master = parse_stubs.StubMaster(args.stubs_path)
+	stub_master = parsing.parse_stubs.StubMaster(args.stubs_path)
 
 	if args.verbose:
 		print('Reading redirect data (SQL) and writing output...')

@@ -1,7 +1,7 @@
 import argparse
 import xml.etree.ElementTree as xet
 
-import etree_helpers
+import parsing.etree_helpers
 
 VERBOSE_FACTOR = 10 ** 5
 
@@ -24,11 +24,11 @@ def main():
 			ns_files[ns] = group_file
 		group_file.write('<mediawiki>\n  ')
 
-	for count, page in enumerate(etree_helpers.pages_gen(args.input_path)):
-		actual_ns = int(etree_helpers.find_child(page, 'ns').text)
+	for count, page in enumerate(parsing.etree_helpers.pages_gen(args.input_path)):
+		actual_ns = int(parsing.etree_helpers.find_child(page, 'ns').text)
 		out_file = ns_files.get(actual_ns)
 		if out_file:
-			page = etree_helpers.rm_xml_nses(page)
+			page = parsing.etree_helpers.rm_xml_nses(page)
 			xml_str = xet.tostring(page, encoding='unicode')
 			out_file.write(xml_str)
 

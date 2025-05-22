@@ -7,10 +7,10 @@ import re
 import wikitextparser
 
 import deep_cat
-import etree_helpers
-import parse_cats
-import parse_redirects
-import parse_stubs
+import parsing.etree_helpers
+import parsing.parse_cats
+import parsing.parse_redirects
+import parsing.parse_stubs
 
 PAGES_VERBOSITY_FACTOR = 10 ** 5
 TEMP_PREFIX = 'Template:'
@@ -82,10 +82,10 @@ def main() -> None:
 
 	if config.verbose:
 		print(f'Reading stubs...')
-	stub_master = parse_stubs.StubMaster(config.stubs_path)
+	stub_master = parsing.parse_stubs.StubMaster(config.stubs_path)
 
 	if config.cats_path and not config.small_ram:
-		cat_master = parse_cats.CategoryMaster(config.cats_path, verbose=config.verbose)
+		cat_master = parsing.parse_cats.CategoryMaster(config.cats_path, verbose=config.verbose)
 
 	good_terms: list[int] = []
 	if config.initial_terms_path:
@@ -105,7 +105,7 @@ def main() -> None:
 	def cat_titles_to_ids(titles: collections.abc.Iterable[str]) -> set[int]:
 		ids = set()
 		for title in titles:
-			ids.add(stub_master.id(title, parse_cats.CAT_NAMESPACE_ID))
+			ids.add(stub_master.id(title, parsing.parse_cats.CAT_NAMESPACE_ID))
 		return ids
 
 	if config.include_cats:
@@ -176,7 +176,7 @@ def main() -> None:
 
 class TermFilter:
 	def __init__(self,
-			stub_master: parse_stubs.StubMaster,
+			stub_master: parsing.parse_stubs.StubMaster,
 			pages_path: str,
 			label_lang: str,
 			redirects_path: str,
@@ -254,10 +254,10 @@ class TermFilter:
 		if self.verbose:
 			print('\nLoading pages data:')
 
-		for count, page in enumerate(etree_helpers.pages_gen(pages_path)):
-			page_id = int(etree_helpers.find_child(page, 'id').text)
-			page_title = etree_helpers.find_child(page, 'title').text
-			page_text = etree_helpers.find_child(etree_helpers.find_child(page, 'revision'), 'text').text
+		for count, page in enumerate(parsing.etree_helpers.pages_gen(pages_path)):
+			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
+			page_title = parsing.etree_helpers.find_child(page, 'title').text
+			page_text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
 			if not (bad_terms and page_id in bad_terms) and not (regex and not re.fullmatch(regex, page_title)):
 				if parts_of_speech:
 					# Assume lang has removed all L2 sections except for the relevant one
@@ -288,7 +288,7 @@ class TermFilter:
 
 def include_redirects(pages: set[str], redirects_path: str) -> set[str]:
 	# Assumes no double redirects
-	for red in parse_redirects.redirects_gen(redirects_path):
+	for red in parsing.parse_redirects.redirects_gen(redirects_path):
 		if red.dst_title in pages:
 			pages.add(red.src_title)
 	return pages
