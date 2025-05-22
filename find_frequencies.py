@@ -1,6 +1,7 @@
 import argparse
 import collections
 import json
+import re
 import string
 
 import wikitextparser
@@ -8,7 +9,8 @@ import wikitextparser
 import etree_helpers
 
 VERBOSE_FACTOR = 10 ** 4
-VALID_CHARS = string.ascii_letters + string.digits
+VALID_CHARS = string.ascii_letters + string.digits + "'"
+WORD_BOUNDARY_PATTERN = '[ ' + string.punctuation.replace("'", '') + ']+'
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -23,6 +25,7 @@ def main():
 		good_ids = [int(line) for line in ids_file]
 
 	frequencies = collections.Counter()
+	total_words = 0
 	for count, page in enumerate(etree_helpers.pages_gen(args.pages_path)):
 		try:
 			page_id = int(etree_helpers.find_child(page, 'id').text)
@@ -37,16 +40,18 @@ def main():
 			except IndexError:
 				continue
 			valid_words = []
-			for word in text.replace('-', ' ').split():
-				word = word.strip(string.punctuation)
+			for word in re.split(WORD_BOUNDARY_PATTERN, text):
+				word = word.strip("'")
 				if word and all(ch in VALID_CHARS for ch in word):
 					valid_words.append(word.casefold() if args.lowercase else word)
+					total_words += 1
 			frequencies.update(valid_words)
 		# Just to catch continues
 		finally:
 			page.clear()
 			if count % VERBOSE_FACTOR == 0:
 				print(f'{count:,}')
+	print(f'Total words counted: {total_words:,}')
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		frequencies = {k: v for k, v in sorted(frequencies.items(), key=lambda item: item[1], reverse=True)}
