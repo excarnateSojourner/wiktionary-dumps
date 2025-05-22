@@ -1,7 +1,9 @@
+# Ignore dump directories, which I name based on the date of the dump (with the year first)
+2*
+archive
+sandbox.*
 *.swp
 __pycache__/
-songParodier
-sandbox.*
 
 # line_profiler / kernprof
 *.lprof
