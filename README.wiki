@@ -1,67 +1,40 @@
-<span id="wiktionary"></span>
-= Wiktionary =
-
+= Wiktionary Dumps =
 These are scripts written to operate on data from [https://en.wiktionary.org/wiki/Wiktionary:Main_Page Wiktionary], a free online dictionary.
 
-<span id="raw-data"></span>
 == Raw data ==
+The raw XML and SQL files which these scripts parse and utilize are available publicly at [https://dumps.wikimedia.org/ Wikimedia Downloads]. Many of them are larger than GitHub's default upload limit of 2 GiB, so I have not included them here.
 
-The raw files available publicly at [https://dumps.wikimedia.org/ Wikimedia Downloads] are larger than GitHub's default upload limit of 2 GiB, so I have not included them here.
+== Running scripts ==
+If you are more accustomed to running single-file, stand-alone scripts (as I used to be), these scripts have to be run from the '''root directory''' of this repo using the following syntax:
 
-<span id="overview"></span>
+<code>python -m script_name script_args --options</code>
+
+Or:
+
+<code>python -m subdirectory.script_name script_args --options</code>
+
+So, for example:
+
+<code>python -m ns pages-meta-current.xml -o pages_ 0 -v</code>
+
+Or:
+
+<code>python -m parsing.parse_stubs page.sql stubs.csv -v</code>
+
 == Overview ==
+I use the term '''''pages file''''' to refer to the XML files such as <code>pages-meta-current.xml</code> and <code>pages-articles.xml</code> that contain information about Wiktionary pages.
 
-The database dump files that these scripts parse are in XML and SQL format. I use the term '''''pages file''''' to refer to the XML files such as <code>pages-meta-current.xml</code> and <code>stub-meta-current.xml</code> that contain information about Wiktionary pages.
+=== Parsing XML and SQL ===
 
-=== <code>ns</code> ===
+==== <code>parse_stubs</code> ====
 
-<span id="purpose"></span>
-==== Purpose ====
-
-To take a pages file and select all the pages in it that are in a particular namespace.
-
-<span id="file-inputs"></span>
-==== File inputs ====
-
-# A pages file.
-
-<span id="output"></span>
-==== Output ====
-
-Another XML file containing only the pages in the specified namespace (and any other non-page data).
-
-=== <code>lang</code> ===
-
-<span id="purpose-1"></span>
-==== Purpose ====
-
-To take a pages file containing pages in Wiktionary's main namespace (in other words the actual dictionary entries that contain definitions), and collect only the definitions for one language (defaults to English) from them.
-
-<span id="file-inputs-1"></span>
-==== File inputs ====
-
-# A pages file.
-
-<span id="output-1"></span>
-==== Output ====
-
-Another pages file containing only the pages that had a section for the language specified, with all other language sections omitted.
-
-=== <code>parse_stubs</code> ===
-
-<span id="purpose-2"></span>
-==== Purpose ====
-
+===== Purpose =====
 To convert a pages file such as <code>stub-meta-current.xml</code> to a CSV file containing the IDs, Wiktionary namespaces, and titles of Wiktionary pages.
 
-<span id="file-inputs-2"></span>
-==== File inputs ====
-
+===== File inputs =====
 # The pages file containing stubs (i.e. IDs, namespaces, and titles). The best file for this in the dumps is <code>stub-meta-current.xml</code> (but <code>pages-meta-current.xml</code> should also work).
 
-<span id="output-2"></span>
-==== Output ====
-
+===== Output =====
 A CSV file in which each line consists of the ID, namespace, and title of a page, separated by vertical bars (<code>|</code>). For example, here are a few of the first lines created from a data dump made in 2024-01 (with some similar lines removed):
 
 <pre class="csv">6|4|Wiktionary:Welcome, newcomers
@@ -71,90 +44,89 @@ A CSV file in which each line consists of the ID, namespace, and title of a page
 16|0|dictionary
 19|0|free
 20|0|thesaurus</pre>
-=== <code>parse_redirects</code> ===
 
-<span id="purpose-3"></span>
-==== Purpose ====
+==== <code>parse_redirects</code> ====
 
+===== Purpose =====
 To convert redirect data from SQL to CSV to make it easier for other programs to work with.
 
-<span id="file-inputs-3"></span>
-==== File inputs ====
-
+===== File inputs =====
 # The SQL file named <code>redirect.sql</code> in the database dumps.
 # A CSV file containing stubs, as created by <code>parse_stubs</code>.
 # A pages file containing the ids and titles of Wiktionary's namespaces. Any of the pages files in the database dumps will work, but not after they have gone through <code>ns</code>.
 
-<span id="output-3"></span>
-==== Output ====
-
+===== Output =====
 A CSV file containing redirect data. Each line gives a source page id, source page title, destination page id, and destination page title, all separated by vertical bars (<code>|</code>).
 
-=== <code>parse_cats</code> ===
+==== <code>parse_cats</code> ====
 
-<span id="purpose-4"></span>
-==== Purpose ====
-
+===== Purpose =====
 To convert category membership data from SQL to CSV to make it easier for other programs to work with Wiktionary's categories.
 
-<span id="file-inputs-4"></span>
-==== File inputs ====
-
+===== File inputs =====
 # The SQL file named <code>categorylinks.sql</code> in the data dumps.
 # A CSV file containing stubs, as produced by <code>parse_stubs</code>.
 
-<span id="output-4"></span>
-==== Output ====
-
+===== Output =====
 A CSV file containing a line for every category-page association. Each line consists of the category ID, the category name (without the &quot;Category:&quot; prefix), the page ID, and the page name (with any appropriate Wiktionary namespace prefix), separated by vertical bars. As an example, the first few lines created from a data dump made in 2022-06 were:
 
 <pre class="csv">227906|Wiktionary beginners|6|Wiktionary:Welcome, newcomers
 303568|Wiktionary pages with shortcuts|6|Wiktionary:Welcome, newcomers
 90507|Wiktionary|8|Wiktionary:Text of the GNU Free Documentation License</pre>
-=== <code>find_terms</code> ===
 
-<span id="purpose-5"></span>
-==== Purpose ====
+==== <code>parse_temps</code> ====
 
-To allow one to create lists of terms based on what categories they are in, what labels they have, what templates they use, what parts of speech they are, and / or whether they match a regex. For example, say you wanted a list of English nouns used in physics that consisted only of lowercase English letters, excluding any that are not used much anymore. <code>find_terms</code> can do this for you.
-
-<span id="file-inputs-5"></span>
-==== File inputs ====
-
-# A pages file containing at least those terms in the included categories.
-# A CSV file describing category memberships as created by <code>parse_cats</code>.
-# A CSV file containing redirect data, as created by <code>parse_redirects</code>.
-
-<span id="output-5"></span>
-==== Output ====
-
-A list of all the terms that meet the criteria, one per line, in an output file.
-
-=== <code>parse_temps</code> ===
-
-<span id="purpose-6"></span>
-==== Purpose ====
-
+===== Purpose =====
 To convert raw template link data (<code>templatelinks.sql</code> in the database dumps) to CSV to make it easier for other programs to work with. The script also provides a template link generator that can be called from other scripts to read the parsed CSV file.
 
-<span id="file-inputs-6"></span>
-==== File inputs ====
-
+===== File inputs =====
 # The raw SQL file to parse.
 # The raw link target SQL file (<code>linktarget.sql</code>) from the same database dump. This allows translation from link targets to template names.
 # The file containing stubs, as generated by <code>parse_stubs</code>.
 
-<span id="output-6"></span>
-==== Output ====
-
+===== Output =====
 A CSV file describing which templates are used on which pages. It gives the ID and title for both the template and the page.
 
-<span id="windows"></span>
+=== Filtering pages ===
+
+==== <code>ns</code> ====
+
+===== Purpose =====
+To take a pages file and select all the pages in it that are in a particular namespace.
+
+===== File inputs =====
+# A pages file.
+
+===== Output =====
+Another XML file containing only the pages in the specified namespace (and any other non-page data).
+
+==== <code>lang</code> ====
+
+===== Purpose =====
+To take a pages file containing pages in Wiktionary's main namespace (in other words the actual dictionary entries that contain definitions), and collect only the definitions for one language (defaults to English) from them.
+
+===== File inputs =====
+# A pages file.
+
+===== Output =====
+Another pages file containing only the pages that had a section for the language specified, with all other language sections omitted.
+
+=== Filtering terms ===
+==== <code>find_terms</code> ====
+
+===== Purpose =====
+To allow one to create lists of terms based on what categories they are in, what labels they have, what templates they use, what parts of speech they are, and / or whether they match a regex. For example, say you wanted a list of English nouns used in physics that consisted only of lowercase English letters, excluding any that are not used much anymore. <code>find_terms</code> can do this for you.
+
+===== File inputs =====
+# A pages file containing at least those terms in the included categories.
+# A CSV file describing category memberships as created by <code>parse_cats</code>.
+# A CSV file containing redirect data, as created by <code>parse_redirects</code>.
+
+===== Output =====
+A list of all the terms that meet the criteria, one per line, in an output file.
+
 == Windows ==
+I have sometimes found it necessary on Windows to run Python with the following options preceding the script name:
 
-I have sometimes found it necessary on Windows to run Python like this:
-
-<code>python -u -X utf8 script.py --script-options</code>
-
-* <code>-u</code> ensures output is unbuffered. If I don't use this I find the verbose output of these scripts can get buffered until I kill Python, thinking it has frozen. Even with this option, I sometimes find I get more output if I hit Enter every so often.
+* <code>-u</code> ensures output is unbuffered. If I don't use this I find the verbose output of these scripts can get buffered until I kill Python, thinking it has frozen. Even with this option, in I sometimes find I get more output if I hit Enter every so often.
 * <code>-X utf8</code> ensures output is always in UTF-8, even when stdout is being piped to another command in Command Prompt.
