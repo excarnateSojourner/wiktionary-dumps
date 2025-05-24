@@ -1,7 +1,6 @@
 import argparse
 import collections
 import re
-import xml.etree.ElementTree as xet
 
 import parsing.etree_helpers
 import parsing.sql_helpers
@@ -17,16 +16,19 @@ def main():
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
-	if args.input_path.endswith('.xml'):
-		stubs = parse_from_xml(args.input_path)
-	elif args.input_path.endswith('.sql'):
+	parse_stubs(**vars(args))
+
+def parse_stubs(input_path: str, output_path: str, verbose: bool = False) -> None:
+	if input_path.endswith('.xml'):
+		stubs = parse_from_xml(input_path)
+	elif input_path.endswith('.sql'):
 		stubs = []
-		for row in parsing.sql_helpers.parse_sql(args.input_path, args.verbose):
+		for row in parsing.sql_helpers.parse_sql(input_path, verbose):
 			stubs.append(Stub(row[0], row[1], row[2].replace('_', ' ')))
 	else:
 		raise ValueError('The input path must end with either ".xml" or ".sql" to indicate how it should be parsed.')
 
-	with open(args.output_path, 'w', encoding='utf-8') as out_file:
+	with open(output_path, 'w', encoding='utf-8') as out_file:
 		for stub in stubs:
 			print(f'{stub.id}|{stub.ns}|{stub.title}', file=out_file)
 

@@ -1,7 +1,7 @@
 import collections.abc
 import re
 
-VERBOSE_FACTOR = 500
+VERBOSE_FACTOR = 200
 
 def parse_sql(path: str, verbose: bool = False) -> collections.abc.Iterator[tuple]:
 	with open(path, encoding='utf-8', errors='ignore') as sql_file:

@@ -19,19 +19,22 @@ def main():
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
-	if args.verbose:
-		print('Loading namespace prefixes...')
-	ns_titles = parsing.etree_helpers.get_mw_namespaces(args.pages_path)
+	parse_redirects(**vars(args))
 
-	if args.verbose:
+def parse_redirects(sql_path: str, stubs_path: str, pages_path: str, output_path: str, verbose: bool = False) -> None:
+	if verbose:
+		print('Loading namespace prefixes...')
+	ns_titles = parsing.etree_helpers.get_mw_namespaces(pages_path)
+
+	if verbose:
 		print('Reading stubs...')
 	# ids and titles map the exact same data in opposite directions
-	stub_master = parsing.parse_stubs.StubMaster(args.stubs_path)
+	stub_master = parsing.parse_stubs.StubMaster(stubs_path)
 
-	if args.verbose:
+	if verbose:
 		print('Reading redirect data (SQL) and writing output...')
-	with open(args.sql_path, encoding='utf-8', errors='ignore') as sql_file:
-		with open(args.output_path, 'w', encoding='utf-8') as out_file:
+	with open(sql_path, encoding='utf-8', errors='ignore') as sql_file:
+		with open(output_path, 'w', encoding='utf-8') as out_file:
 			for line in sql_file:
 				if line.startswith('INSERT INTO '):
 					try:

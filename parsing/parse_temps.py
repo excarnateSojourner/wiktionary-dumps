@@ -21,6 +21,9 @@ def main():
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
+	parse_temps(**vars(args))
+
+def parse_temps(template_links_path: str, link_targets_path: str, stubs_path: str, output_path: str, verbose: bool = False) -> None:
 	if args.verbose:
 		print('Reading stubs ...')
 	stub_master = parsing.parse_stubs.StubMaster(args.stubs_path)
