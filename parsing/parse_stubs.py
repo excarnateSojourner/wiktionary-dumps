@@ -5,7 +5,7 @@ import re
 import parsing.etree_helpers
 import parsing.sql_helpers
 
-VERBOSITY_FACTOR = 10 ** 6
+XML_VERBOSITY_FACTOR = 10 ** 6
 
 Stub = collections.namedtuple('Stub', ['id', 'ns', 'title'])
 
@@ -20,7 +20,7 @@ def main():
 
 def parse_stubs(input_path: str, output_path: str, verbose: bool = False) -> None:
 	if input_path.endswith('.xml'):
-		stubs = parse_from_xml(input_path)
+		stubs = parse_from_xml(input_path, verbose)
 	elif input_path.endswith('.sql'):
 		stubs = []
 		for row in parsing.sql_helpers.parse_sql(input_path, verbose):
@@ -32,20 +32,24 @@ def parse_stubs(input_path: str, output_path: str, verbose: bool = False) -> Non
 		for stub in stubs:
 			print(f'{stub.id}|{stub.ns}|{stub.title}', file=out_file)
 
-def parse_from_xml(xml_path: str) -> collections.abc.Iterator[Stub]:
-	for page in parsing.etree_helpers.pages_gen(xml_path):
+def parse_from_xml(xml_path: str, verbose: bool = False) -> collections.abc.Iterator[Stub]:
+	for page_count, page in enumerate(parsing.etree_helpers.pages_gen(xml_path)):
 		parts = []
 		for child_tag in ['id', 'ns', 'title']:
 			child = parsing.etree_helpers.find_child(page, child_tag)
-			if child:
-				parts.append(child.text)
-			else:
-				print('Warning: Skipping a page that is missing <{child_tag}>.')
+			# As of Python 3.13 elements that have no children are falsey!
+			# So comparison with None is necessary
+			if child is None:
+				print(f'Warning: Skipping a page that is missing <{child_tag}>.')
 				break
+			else:
+				parts.append(child.text)
 		# Else branch of for loop
 		else:
-			ns_prefix, colon, parts[2] = parts[2].rpartition(':')
+			mw_ns, colon, parts[2] = parts[2].rpartition(':')
 			stub = Stub(*parts)
+			if verbose and page_count % XML_VERBOSITY_FACTOR == 0:
+				print(f'{page_count:,}')
 			yield stub
 		page.clear()
 
