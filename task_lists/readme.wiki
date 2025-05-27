@@ -1,0 +1,2 @@
+= Task lists =
+These scripts generate lists of pages that can all be improved in a similar way. Often they find entries that lack something in their pronunciation sections, since this is one of the niches I like to work in on Wiktionary.

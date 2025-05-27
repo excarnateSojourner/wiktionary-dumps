@@ -1,3 +1,7 @@
+'''
+Find templates that are not yet categorized based on what kind of template they are, so that I can categorize them.
+'''
+
 import argparse
 
 import parsing.parse_cats

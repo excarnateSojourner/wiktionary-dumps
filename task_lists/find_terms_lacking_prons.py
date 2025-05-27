@@ -1,3 +1,7 @@
+'''
+Find common words that lack pronunciations in the English Wiktionary, so that I can add pronunciations to them. Commonality is determined by word frequencies created by find_frequencies using data from Wikisource.
+'''
+
 import argparse
 import json
 

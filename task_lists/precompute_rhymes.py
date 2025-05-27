@@ -1,3 +1,11 @@
+'''
+See https://en.wiktionary.org/wiki/User:ExcarnateSojourner/Terms_lacking_rhymes for context.
+
+To generate pronLines.txt, use:
+
+grep -ioP '(?<=\{\{IPA\|en\|).*?(?=\}\})' pages-ns0-en.xml | sed 's/[.ˌ() ͡]//g' > pronLines.txt
+'''
+
 import argparse
 import collections
 import importlib

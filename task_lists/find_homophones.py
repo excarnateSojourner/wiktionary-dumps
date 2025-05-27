@@ -1,3 +1,7 @@
+'''
+Find entries in the English Wiktionary that have homophones that are not yet listed, by looking through the homophone lists on other entries.
+'''
+
 import argparse
 import collections
 import re
