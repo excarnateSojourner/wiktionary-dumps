@@ -13,21 +13,24 @@ def rm_xml_nses(elem: xet.Element) -> xet.Element:
 		rm_xml_nses(child)
 	return elem
 
-def find_child(elem: xet.Element, tag: str, xml_nses: bool = True) -> xet.Element | None:
+def find_child(elem: xet.Element, tag: str, ignore_xml_nses: bool = True) -> xet.Element | None:
 	'''
-	xml_nses indicates whether XML namespaces should be removed before comparing the tags of children of elem.
+	Like xet.Element.findtext(), but without the hassle of XML namespaces.
+	ignore_xml_nses indicates whether XML namespaces should be removed before comparing the tags of children of elem.
 	'''
 	try:
-		if xml_nses:
-			child = next(child for child in elem if tag_without_xml_ns_is(child, tag))
+		if ignore_xml_nses:
+			found = next(child for child in elem if tag_without_xml_ns_is(child, tag))
 		else:
-			child = next(child for child in elem if child.tag == tag)
+			found = next(child for child in elem if child.tag == tag)
 	except StopIteration:
 		return None
-	return child
+	return found
 
 def pages_gen(pages_path: str) -> collections.abc.Iterator[xet.Element]:
-	return (elem for _, elem in xet.iterparse(pages_path) if tag_without_xml_ns_is(elem, 'page'))
+	for event, elem in xet.iterparse(pages_path):
+		if tag_without_xml_ns_is(elem, 'page'):
+			yield elem
 
 def get_mw_namespaces(path: str) -> dict[int, str]:
 	mw_ns_elem = next(elem for _, elem in xet.iterparse(path) if tag_without_xml_ns_is(elem, 'namespaces'))
