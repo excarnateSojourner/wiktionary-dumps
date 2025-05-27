@@ -24,23 +24,23 @@ def main():
 	parse_temps(**vars(args))
 
 def parse_temps(template_links_path: str, link_targets_path: str, stubs_path: str, output_path: str, verbose: bool = False) -> None:
-	if args.verbose:
+	if verbose:
 		print('Reading stubs ...')
-	stub_master = parsing.parse_stubs.StubMaster(args.stubs_path)
+	stub_master = parsing.parse_stubs.StubMaster(stubs_path)
 
-	if args.verbose:
+	if verbose:
 		print(f'Reading link targets:')
 	link_targets_to_temp_titles = {}
-	for link_target in parsing.sql_helpers.parse_sql(args.link_targets_path, args.verbose):
+	for link_target in parsing.sql_helpers.parse_sql(link_targets_path, verbose):
 		if link_target[1] == TEMP_NAMESPACE_ID:
 			link_targets_to_temp_titles[link_target[0]] = link_target[2].replace('_', ' ')
 
-	if args.verbose:
+	if verbose:
 		print(f'Loaded {len(link_targets_to_temp_titles)} temp titles.')
 		print('Processing template links:')
 	missing_temps = set()
-	with open(args.output_path, 'w', encoding='utf-8') as out_file:
-		for link in parsing.sql_helpers.parse_sql(args.template_links_path, args.verbose):
+	with open(output_path, 'w', encoding='utf-8') as out_file:
+		for link in parsing.sql_helpers.parse_sql(template_links_path, verbose):
 			page_id = link[0]
 			target_id = link[2]
 			try:
@@ -54,7 +54,7 @@ def parse_temps(template_links_path: str, link_targets_path: str, stubs_path: st
 				temp_id = stub_master.id(temp_title, TEMP_NAMESPACE_ID)
 			except KeyError:
 				if temp_title not in missing_temps:
-					print(f'Warning: {TEMP_NAMESPACE_PREFIX}{temp_title} is transcluded but does not exist ({template_links_count:,}).')
+					print(f'Warning: {TEMP_NAMESPACE_PREFIX}{temp_title} is transcluded but does not exist.')
 					missing_temps.add(temp_title)
 				continue
 			try:

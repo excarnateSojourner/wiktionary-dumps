@@ -37,11 +37,10 @@ def parse_redirects(sql_path: str, stubs_path: str, pages_path: str, output_path
 		with open(output_path, 'w', encoding='utf-8') as out_file:
 			for line in sql_file:
 				if line.startswith('INSERT INTO '):
-					try:
-						line_trimmed = re.fullmatch(r'INSERT INTO `\w*` VALUES \((.*)\);', line[:-1])[1]
-					# no match
-					except TypeError:
+					line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES \((.*)\);', line[:-1])
+					if not line_match:
 						continue
+					line_trimmed = line_match[1]
 					rows = [row.split(',', maxsplit=4)[:4] for row in line_trimmed.split('),(')]
 					for row in rows:
 						# if an internal redirect
