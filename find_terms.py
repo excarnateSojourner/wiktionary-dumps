@@ -133,12 +133,12 @@ def main() -> None:
 		except FileNotFoundError:
 			pass
 	if not form_of_temps:
-		if args.verbose:
+		if config.verbose:
 			print('Finding all form-of templates and their aliases:')
 		if config.small_ram:
-			form_of_temps = deep_cat.deep_cat_filter_slow(args.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=args.verbose)
+			form_of_temps = deep_cat.deep_cat_filter_slow(config.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
 		else:
-			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=args.verbose)
+			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
 	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects(form_of_temps, config.redirects_path)}
 	# Attempt to cache form-of templates
 	try:
