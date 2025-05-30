@@ -9,8 +9,29 @@ import deep_cat
 import parsing.etree_helpers
 
 VERBOSITY_FACTOR = 10 ** 5
-# Long vowel indicators, syllable separators (normal ASCII period), and ties
-PRON_CHARS_TO_REMOVE = str.maketrans('', '', '\u02D0.\u0361')
+PRON_CHARS_TO_REMOVE = [
+	# Primary stress marker
+	'\u02C8',
+	# Secondary stress marker
+	'\u02CC',
+	# Syllable separator (normal ASCII period)
+	'.',
+	# Space
+	' ',
+	# Long vowel marker
+	'\u02D0',
+	# Half-long vowel marker
+	'\u02D1',
+	# Short vowel marker
+	'\u0306',
+	# Tie
+	'\u0361',
+	# Indicates a consonant is syllabic
+	'\u0329',
+	# Keep optional phonemes
+	'(', ')'
+]
+PRON_TRANS = str.maketrans('', '', ''.join(PRON_CHARS_TO_REMOVE))
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -59,9 +80,9 @@ def main():
 				temp_prons = [arg.value for arg in temp.arguments if arg.positional][1:]
 				for pron in temp_prons:
 					if pron.startswith('/') and pron.endswith('/'):
-						pron = pron[1:-1].translate(PRON_CHARS_TO_REMOVE)
+						pron = pron[1:-1].translate(PRON_TRANS)
 						prons.add(pron)
-			pron_data[page_title]['pronunciations'] = prons
+			pron_data[page_title]['pronunciations'] = list(prons)
 			if page_id in good_ids:
 				pron_data[page_title]['frequency'] = frequencies.get(page_title.casefold(), 0)
 
