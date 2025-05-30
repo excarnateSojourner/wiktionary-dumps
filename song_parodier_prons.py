@@ -34,7 +34,7 @@ def main():
 
 	if args.verbose:
 		print('Reading entries:')
-	pron_data = collections.defaultdict(dict)
+	pron_data: dict[str, dict] = collections.defaultdict(dict)
 	for page_count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
 		try:
 			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
@@ -51,7 +51,7 @@ def main():
 				continue
 
 			# Find pronunciations
-			prons: list[str] = []
+			prons = set()
 			for temp in pron_sec.templates:
 				if temp.normal_name() != 'IPA':
 					continue
@@ -60,9 +60,8 @@ def main():
 				for pron in temp_prons:
 					if pron.startswith('/') and pron.endswith('/'):
 						pron = pron[1:-1].translate(PRON_CHARS_TO_REMOVE)
-						prons.append(pron)
-			if prons:
-				pron_data[page_title]['pronunciations'] = prons
+						prons.add(pron)
+			pron_data[page_title]['pronunciations'] = prons
 			if page_id in good_ids:
 				pron_data[page_title]['frequency'] = frequencies.get(page_title.casefold(), 0)
 
