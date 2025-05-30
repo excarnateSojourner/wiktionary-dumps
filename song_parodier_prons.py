@@ -33,15 +33,29 @@ PRON_CHARS_TO_REMOVE = [
 ]
 PRON_TRANS = str.maketrans('', '', ''.join(PRON_CHARS_TO_REMOVE))
 
+# This is a few of the most common accents from [[Module:labels/data/lang/en]]
+DEALIAS_ACCENT = {
+	**dict.fromkeys(['GenAm', 'GA'], 'General American'),
+	**dict.fromkeys(['RP'], 'Received Pronunciation'),
+	**dict.fromkeys(['CA', 'Canadian', 'CanE', 'Canadian English'], 'Canada'),
+	**dict.fromkeys(['U.S.', 'United States', 'United States of America', 'USA', 'US English', 'U.S. English', 'America', 'American', 'American English'], 'US'),
+	**dict.fromkeys(['Australian', 'AU', 'AuE', 'Aus', 'AusE', 'General Australian'], 'Australia'),
+	**dict.fromkeys(['NZ', 'NZE'], 'New Zealand'),
+	**dict.fromkeys(['United Kingdom'], 'UK')
+}
+
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('pages_path', help='Path of the XML file containing the text of each entry, in order to find pronunciations.')
 	parser.add_argument('good_ids_path', help='Path of the file containing entry IDs (one per line) of terms considered acceptable replacements, as produced by find_terms.')
 	parser.add_argument('frequencies_path', help='Path of the JSON file containing word frequencies, as produced by find_frequencies.')
+	parser.add_argument('-a', '--accents', nargs='+', default=[], help='The accents of English (as they appear next to IPA pronunciations on Wiktionary) to look for pronunciations in. Pronunciations in other accents will be excluded, but pronunciations with no accent specified will be included.')
 	parser.add_argument('-l', '--language', default='English', help='The name of the language as it appears in the heading of each entry. Defaults to "English".')
 	parser.add_argument('output_path', help='Path of the file to write the pronunciation data to.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
+
+	args.accents = [DEALIAS_ACCENT.get(acc, acc) for acc in args.accents]
 
 	if args.verbose:
 		print('Reading IDs of good words...')
@@ -78,10 +92,19 @@ def main():
 					continue
 				# Skip over the first argument since it is the language code
 				temp_prons = [arg.value for arg in temp.arguments if arg.positional][1:]
-				for pron in temp_prons:
-					if pron.startswith('/') and pron.endswith('/'):
-						pron = pron[1:-1].translate(PRON_TRANS)
-						prons.add(pron)
+
+				for i, pron in enumerate(temp_prons, start=1):
+					if args.accents:
+						accent_arg = temp.get_arg(f'a{i}') or temp.get_arg('a')
+						if accent_arg and not any(DEALIAS_ACCENT.get(accent, accent) in args.accents for accent in accent_arg.value.split(',')):
+								continue
+					if not (pron.startswith('/') and pron.endswith('/')):
+						continue
+					pron = pron[1:-1]
+					if pron.startswith('-') or pron.endswith('-'):
+						continue
+					prons.add(pron.translate(PRON_TRANS))
+
 			pron_data[page_title]['pronunciations'] = list(prons)
 			if page_id in good_ids:
 				pron_data[page_title]['frequency'] = frequencies.get(page_title.casefold(), 0)
