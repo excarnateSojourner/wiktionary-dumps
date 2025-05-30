@@ -6,9 +6,12 @@ import re
 
 import wikitextparser
 
+import deep_cat
 import parsing.etree_helpers
 
 VERBOSITY_FACTOR = 10 ** 5
+# Long vowel indicators, syllable separators (normal ASCII period), and ties
+RHYME_CHARS_TO_REMOVE = str.maketrans('', '', '\u02D0.\u0361')
 GOOD_PARTS_OF_SPEECH = ['adjective', 'adverb', 'interjection', 'noun', 'verb']
 PARTS_OF_SPEECH = {
 	'adjective',
@@ -34,23 +37,16 @@ PARTS_OF_SPEECH = {
 	'verb'
 }
 RHYME_TEMP_NAMES = ['rhymes', 'rhyme']
-RHYME_CAT_PREFIX = 'Rhymes:English/'
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('rhyme_ids_path', help='Path of the file containing entry IDs (one per line) of terms which have rhymes, as produced by using deep_cat to find all entries in Category:Rhymes:English.')
 	parser.add_argument('pages_path', help='Path of the XML file containing the text of each entry, in order to determine predominant parts of speech.')
 	parser.add_argument('good_ids_path', help='Path of the file containing entry IDs (one per line) of terms considered acceptable replacements, as produced by find_terms.')
-	parser.add_argument('frequencies_path', help='Path of the JSON file containing word frequencies, as pdocued by find_frequencies.')
-	parser.add_argument('-l', '--language', default='English', help='The name of the language as it appears in the heading of each entry.')
+	parser.add_argument('frequencies_path', help='Path of the JSON file containing word frequencies, as produced by find_frequencies.')
+	parser.add_argument('-l', '--language', default='English', help='The name of the language as it appears in the heading of each entry. Defaults to "English".')
 	parser.add_argument('output_path', help='Path of the file to write the rhyme category data to.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
-
-	if args.verbose:
-		print('Reading IDs of terms with rhymes...')
-	with open(args.rhyme_ids_path, encoding='utf-8') as rhyme_ids_file:
-		rhyme_ids = {int(id_) for id_ in rhyme_ids_file.read().splitlines()}
 
 	if args.verbose:
 		print('Reading IDs of good words...')
@@ -74,7 +70,10 @@ def main():
 				continue
 			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
 			wikitext = wikitextparser.parse(text)
-			lang_sec = next(sec for sec in wikitext.get_sections(level=2) if sec.title == args.language)
+			try:
+				lang_sec = next(sec for sec in wikitext.get_sections(level=2) if sec.title == args.language)
+			except StopIteration:
+				continue
 
 			# Find predominant part of speech
 			# If part of speech is not recognized this field is set to None, indicating the word is a function word
@@ -82,20 +81,22 @@ def main():
 			word_rhymes[page_title]['part of speech'] = part_of_speech if part_of_speech in GOOD_PARTS_OF_SPEECH else None
 
 			# Find rhymes
-			if page_id in rhyme_ids:
-				word_rhymes[page_title]['rhymes'] = collections.defaultdict(list)
-				for temp in lang_sec.templates:
-					if temp.normal_name() in RHYME_TEMP_NAMES:
-						# Skip over the first argument since it is the language code
-						temp_rhymes = [arg.value for arg in temp.arguments if arg.positional][1:]
-						for i, rhyme in enumerate(temp_rhymes, start=1):
-							syllable_count_arg = temp.get_arg(f's{i}') or temp.get_arg('s')
-							if syllable_count_arg:
-								for syllable_count in syllable_count_arg.value.split(','):
-									# We could convert syllable_count to an int here, but there's no point since it will get converted back to a string in JSON
-									word_rhymes[page_title]['rhymes'][syllable_count].append(rhyme)
-				if page_id in good_ids and part_of_speech:
-					word_rhymes[page_title]['frequency'] = frequencies.get(page_title, 0)
+			rhymes: dict[int, list[str]] = collections.defaultdict(list)
+			for temp in lang_sec.templates:
+				if temp.normal_name() in RHYME_TEMP_NAMES:
+					# Skip over the first argument since it is the language code
+					temp_rhymes = [arg.value for arg in temp.arguments if arg.positional][1:]
+					for i, rhyme in enumerate(temp_rhymes, start=1):
+						syllable_count_arg = temp.get_arg(f's{i}') or temp.get_arg('s')
+						if syllable_count_arg:
+							rhyme = rhyme.translate(RHYME_CHARS_TO_REMOVE)
+							for syllable_count in syllable_count_arg.value.split(','):
+								# We could convert syllable_count to an int here, but there's no point since it will get converted back to a string in JSON
+								rhymes[syllable_count].append(rhyme)
+			if rhymes:
+				word_rhymes[page_title]['rhymes'] = rhymes
+			if page_id in good_ids and part_of_speech:
+				word_rhymes[page_title]['frequency'] = frequencies.get(page_title.casefold(), 0)
 
 		finally:
 			if args.verbose and page_count % VERBOSITY_FACTOR == 0:
