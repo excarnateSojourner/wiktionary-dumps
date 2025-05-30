@@ -36,7 +36,7 @@ def parse_cats(sql_path: str, stubs_path: str, output_path: str, verbose: bool =
 			page_id = row[0]
 			try:
 				cat_id = stub_master.id(cat_title, CAT_NAMESPACE_ID)
-				print(f'{cat_id}|{cat_title}|{page_id}|{stub_master.ns(page_id)}|{stub_master.title(page_id)}', file=out_file)
+				out_file.write(f'{cat_id}|{cat_title}|{page_id}|{stub_master.ns(page_id)}|{stub_master.title(page_id)}\n')
 			except KeyError:
 				# A category may not be found if it is in use but has no page
 				pass

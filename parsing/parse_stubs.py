@@ -46,7 +46,7 @@ def parse_from_xml(xml_path: str, verbose: bool = False) -> collections.abc.Iter
 				parts.append(child.text)
 		# Else branch of for loop
 		else:
-			mw_ns, colon, parts[2] = parts[2].rpartition(':')
+			mw_ns, colon, parts[2] = parts[2].partition(':')
 			stub = Stub(*parts)
 			if verbose and page_count % XML_VERBOSITY_FACTOR == 0:
 				print(f'{page_count:,}')
@@ -62,8 +62,6 @@ class StubMaster():
 			self.ns_titles_to_ids[stub.ns][stub.title] = stub.id
 
 	def id(self, title: str, ns: int = 0) -> int:
-		# Remove namespace prefix if it is present
-		ns_prefix, colon, title = title.rpartition(':')
 		return self.ns_titles_to_ids[ns][title]
 
 	def title(self, id_: int) -> str:
