@@ -22,8 +22,10 @@ PRON_CHARS_TO_REMOVE = [
 	'\u02D0',
 	# Half-long vowel marker
 	'\u02D1',
-	# Short vowel marker
+	# Short vowel marker listed at [[wikipedia:International Phonetic Alphabet]]
 	'\u0306',
+	# Short vowel marker used in practice on Wiktionary
+	'\u032F',
 	# Tie
 	'\u0361',
 	# Indicates a consonant is syllabic
@@ -86,16 +88,17 @@ def main():
 				continue
 
 			# Find pronunciations
-			prons = set()
+			prons = []
 			for temp in pron_sec.templates:
 				if temp.normal_name() != 'IPA':
 					continue
 				# Skip over the first argument since it is the language code
 				temp_prons = [arg.value for arg in temp.arguments if arg.positional][1:]
 
+				general_accent = temp.get_arg('a')
 				for i, pron in enumerate(temp_prons, start=1):
 					if args.accents:
-						accent_arg = temp.get_arg(f'a{i}') or temp.get_arg('a')
+						accent_arg = temp.get_arg(f'a{i}') or general_accent
 						if accent_arg and not any(DEALIAS_ACCENT.get(accent, accent) in args.accents for accent in accent_arg.value.split(',')):
 								continue
 					if not (pron.startswith('/') and pron.endswith('/')):
@@ -103,9 +106,11 @@ def main():
 					pron = pron[1:-1]
 					if pron.startswith('-') or pron.endswith('-'):
 						continue
-					prons.add(pron.translate(PRON_TRANS))
+					pron = pron.translate(PRON_TRANS)
+					if pron not in prons:
+						prons.append(pron)
 
-			pron_data[page_title]['pronunciations'] = list(prons)
+			pron_data[page_title]['pronunciations'] = prons
 			if page_id in good_ids:
 				pron_data[page_title]['frequency'] = frequencies.get(page_title.casefold(), 0)
 
