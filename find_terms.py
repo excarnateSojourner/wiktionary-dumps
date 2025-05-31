@@ -139,7 +139,7 @@ def main() -> None:
 			form_of_temps = deep_cat.deep_cat_filter_slow(config.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
 		else:
 			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
-	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in include_redirects(form_of_temps, config.redirects_path)}
+	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in parsing.parse_redirects.add_redirects(form_of_temps, config.redirects_path)}
 	# Attempt to cache form-of templates
 	try:
 		with open(config.temps_cache_path, 'x', encoding='utf-8') as temps_cache_file:
@@ -197,7 +197,7 @@ class TermFilter:
 		self.exclude_labels = exclude_labels or set()
 		self.exclude_temps: set[str] = set()
 		if exclude_temps:
-			for temp in include_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path):
+			for temp in parsing.parse_redirects.add_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path):
 				self.exclude_temps.add(temp.removeprefix(TEMP_PREFIX))
 		self.cache = {id_: False for id_ in bad_terms} if bad_terms else {}
 
@@ -285,13 +285,6 @@ class TermFilter:
 		return sense_temps
 
 # End of TermFilter
-
-def include_redirects(pages: set[str], redirects_path: str) -> set[str]:
-	# Assumes no double redirects
-	for red in parsing.parse_redirects.redirects_gen(redirects_path):
-		if red.dst_title in pages:
-			pages.add(red.src_title)
-	return pages
 
 if __name__ == '__main__':
 	main()

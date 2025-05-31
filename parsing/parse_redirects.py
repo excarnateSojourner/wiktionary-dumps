@@ -46,5 +46,23 @@ def redirects_gen(path: str) -> collections.abc.Iterator[RedirectData]:
 			src_id, src_ns, src_title, dst_id, dst_ns, dst_title = line[:-1].split('|', maxsplit=5)
 			yield RedirectData(int(src_id), int(src_ns), src_title, int(dst_id), int(dst_ns), dst_title)
 
+def add_redirects(pages: set[int] | set[str], redirects_path: str) -> set[int] | set[str]:
+	'''
+	Add all pages that redirect to any of the specified pages to the set of pages, and return this set.
+	Assume there are no double redirects.
+	'''
+
+	if isinstance(next(iter(pages)), int):
+		for red in redirects_gen(redirects_path):
+			if red.dst_id in pages:
+				pages.add(red.src_id)
+	# Pages are page titles
+	else:
+		for red in redirects_gen(redirects_path):
+			if red.dst_title in pages:
+				pages.add(red.src_title)
+	return pages
+
+
 if __name__ == '__main__':
 	main()
