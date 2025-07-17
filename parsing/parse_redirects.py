@@ -46,11 +46,12 @@ def redirects_gen(path: str) -> collections.abc.Iterator[RedirectData]:
 			src_id, src_ns, src_title, dst_id, dst_ns, dst_title = line[:-1].split('|', maxsplit=5)
 			yield RedirectData(int(src_id), int(src_ns), src_title, int(dst_id), int(dst_ns), dst_title)
 
-def add_redirects(pages: set[int] | set[str], redirects_path: str) -> set[int] | set[str]:
+# No, the type hints of these parameters cannot be made more general
+def add_redirects(pages: set[int] | set[tuple[int, str]], redirects_path: str) -> set[int] | set[tuple[int, str]]:
 	'''
-	Add all pages that redirect to any of the specified pages to the set of pages, and return this set.
+	Adds all pages that redirect to any of the specified pages to the set of pages, and returns this set.
 	Assume there are no double redirects.
-	pages: Either a set of page IDs or a set of page titles (but not a mix).
+	pages: Either a set of page IDs or a set of tuples, each containing a namespace ID and page title. (A mix of page IDs and tuples is not supported.)
 	'''
 	# Prevent StopIteration on empty set
 	if not pages:
@@ -62,8 +63,8 @@ def add_redirects(pages: set[int] | set[str], redirects_path: str) -> set[int] |
 	# Pages are page titles
 	else:
 		for red in redirects_gen(redirects_path):
-			if red.dst_title in pages:
-				pages.add(red.src_title)
+			if (red.dst_ns, red.dst_title) in pages:
+				pages.add((red.src_ns, red.src_title))
 	return pages
 
 

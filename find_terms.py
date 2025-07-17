@@ -11,6 +11,7 @@ import parsing.etree_helpers
 import parsing.parse_cats
 import parsing.parse_redirects
 import parsing.parse_stubs
+import parsing.parse_temps
 
 PAGES_VERBOSITY_FACTOR = 10 ** 5
 TEMP_PREFIX = 'Template:'
@@ -139,7 +140,7 @@ def main() -> None:
 			form_of_temps = deep_cat.deep_cat_filter_slow(config.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
 		else:
 			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
-	form_of_temps = {temp.removeprefix(TEMP_PREFIX) for temp in parsing.parse_redirects.add_redirects(form_of_temps, config.redirects_path)}
+	form_of_temps = parsing.parse_redirects.add_redirects({(parsing.parse_temps.TEMP_NAMESPACE_ID, temp_title) for temp_title in form_of_temps}, config.redirects_path)
 	# Attempt to cache form-of templates
 	try:
 		with open(config.temps_cache_path, 'x', encoding='utf-8') as temps_cache_file:
@@ -197,8 +198,9 @@ class TermFilter:
 		self.exclude_labels = exclude_labels or set()
 		self.exclude_temps: set[str] = set()
 		if exclude_temps:
-			for temp in parsing.parse_redirects.add_redirects({TEMP_PREFIX + temp for temp in exclude_temps}, redirects_path):
-				self.exclude_temps.add(temp.removeprefix(TEMP_PREFIX))
+			temps_with_nses = {(parsing.parse_temps.TEMP_NAMESPACE_ID, temp) for temp in exclude_temps}
+			for temp_with_ns in parsing.parse_redirects.add_redirects(temps_with_nses, redirects_path):
+				self.exclude_temps.add(temp_with_ns[1])
 		self.cache = {id_: False for id_ in bad_terms} if bad_terms else {}
 
 	def check_entry(self, term: int | str, time_to_live: int = 4) -> bool:
