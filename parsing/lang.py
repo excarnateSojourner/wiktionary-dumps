@@ -41,27 +41,27 @@ def main():
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		out_file.write('<mediawiki>\n  ')
 		for page_count, page in enumerate(parsing.etree_helpers.pages_gen(args.input_path)):
-			is_target = False
-			if args.cats_path:
-				page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
-				if page_id in target_pages:
-					is_target = True
-			else:
+			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
+			try:
+				if args.cats_path and page_id not in target_pages:
+						continue
 				text_elem = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text')
 				# Perform a fast substring search first to avoid parsing most irrelevant pages
 				if args.language in text_elem.text:
-					parsed = wikitextparser.parse(text_elem.text)
-					if any(True for section in parsed.get_sections(level=2) if section.title == args.language):
-						is_target = True
+					wikitext = wikitextparser.parse(text_elem.text)
+					for section in wikitext.get_sections(level=2):
+						section_title = section.title.strip()
+						# Any text before the first heading will be considered its own section with an empty title
+						if section_title and section_title == args.language:
+							text_elem.text = str(section)
+							page_xml = xet.tostring(page, encoding='unicode')
+							out_file.write(f'{page_xml}\n  ')
+							break
 
-			if is_target:
-				page_xml = xet.tostring(page, encoding='unicode')
-				out_file.write(page_xml)
-				out_file.write('\n  ')
-
-			page.clear()
-			if args.verbose and page_count % PAGE_VERBOSE_FACTOR == 0:
-				print(f'{page_count:,}')
+			finally:
+				page.clear()
+				if args.verbose and page_count % PAGE_VERBOSE_FACTOR == 0:
+					print(f'{page_count:,}')
 
 		out_file.write('\n</mediawiki>\n')
 
