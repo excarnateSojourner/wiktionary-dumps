@@ -53,7 +53,6 @@ To convert redirect data from SQL to CSV to make it easier for other programs to
 ===== File inputs =====
 # The SQL file named <code>redirect.sql</code> in the database dumps.
 # A CSV file containing stubs, as created by <code>parse_stubs</code>.
-# A pages file containing the ids and titles of Wiktionary's namespaces. Any of the pages files in the database dumps will work, but not after they have gone through <code>ns</code>.
 
 ===== Output =====
 A CSV file containing redirect data. Each line gives a source page id, source page title, destination page id, and destination page title, all separated by vertical bars (<code>|</code>).
