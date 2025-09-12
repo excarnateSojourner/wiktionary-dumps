@@ -55,7 +55,7 @@ def main():
 						if section_title and section_title == args.language:
 							text_elem.text = str(section)
 							page_xml = xet.tostring(page, encoding='unicode')
-							out_file.write(f'{page_xml}\n  ')
+							out_file.write(f'{page_xml}')
 							break
 
 			finally:
@@ -63,7 +63,7 @@ def main():
 				if args.verbose and page_count % PAGE_VERBOSE_FACTOR == 0:
 					print(f'{page_count:,}')
 
-		out_file.write('\n</mediawiki>\n')
+		out_file.write('</mediawiki>\n')
 
 if __name__ == '__main__':
 	main()
