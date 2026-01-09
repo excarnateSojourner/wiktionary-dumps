@@ -6,10 +6,11 @@ VERBOSE_FACTOR = 10 ** 5
 def parse_sql(path: str, verbose: bool = False) -> collections.abc.Iterator[tuple]:
 	row_count = 0
 	with open(path, encoding='utf-8', errors='ignore') as sql_file:
-		for line in sql_file:
+		for line_count, line in enumerate(sql_file):
 			if line.startswith('INSERT INTO '):
 				line_match = re.fullmatch(r'INSERT INTO `\w*` VALUES (.*?);', line[:-1])
 				if not line_match:
+					print(f'Warning: Skipping {path} line {line_count + 1}.')
 					continue
 				values = line_match[1].replace('NULL', 'None')
 				rows = eval(f'[{values}]')
