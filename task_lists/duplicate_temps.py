@@ -16,7 +16,8 @@ def main():
 		title = parsing.etree_helpers.find_child(page, 'title').text
 		if not title.endswith('/documentation'):
 			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
-			hashes[hash(text)].append(title)
+			if text and not text.startswith('#REDIRECT'):
+				hashes[hash(text)].append(title)
 		if page_count % VERBOSE_FACTOR == 0:
 			print(f'{page_count:,}')
 
