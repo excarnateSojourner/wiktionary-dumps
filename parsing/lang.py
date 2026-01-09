@@ -33,8 +33,8 @@ def main():
 				target_pages.add(cat_link.page_id)
 			if args.verbose and cat_count % CAT_VERBOSE_FACTOR == 0:
 				print(f'{cat_count:,}')
-	if args.verbose:
-		print(f'Found {len(target_pages):,} {args.language} terms.')
+		if args.verbose:
+			print(f'Found {len(target_pages):,} {args.language} terms.')
 
 	if args.verbose:
 		print('Filtering pages:')
