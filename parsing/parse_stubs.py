@@ -70,6 +70,11 @@ class StubMaster():
 	def ns(self, id_: int) -> int:
 		return self.ids_to_ns_titles[id_][0]
 
+	def __iter__(self) -> collections.abc.Iterator[Stub]:
+		for id_, ns_title in self.ids_to_ns_titles.items():
+			ns, title = ns_title
+			yield Stub(id_, ns, title)
+
 def stubs_gen(stubs_path: str) -> collections.abc.Iterator[Stub]:
 	with open(stubs_path, encoding='utf-8') as stubs_file:
 		for line in stubs_file:
