@@ -23,36 +23,39 @@ def main():
 	parser.add_argument('-v', '--verbose', action='store_true', help='Prints occasional progress updates.')
 	args = parser.parse_args()
 
-	target_cats = [f'{args.language} lemmas', f'{args.language} non-lemma forms']
+	language_filter(args.input_path, args.output_path, args.language, args.cats_path, args.verbose)
+
+def language_filter(input_path: str, output_path: str, language: str = 'English', cats_path: str | None = None, verbose: bool = False) -> None:
+	target_cats = [f'{language} lemmas', f'{language} non-lemma forms']
 	target_pages = set()
-	if args.verbose:
+	if verbose:
 		print('Reading in category data:')
-	if args.cats_path:
-		for cat_count, cat_link in enumerate(parsing.parse_cats.cats_gen(args.cats_path)):
+	if cats_path:
+		for cat_count, cat_link in enumerate(parsing.parse_cats.cats_gen(cats_path)):
 			if cat_link.cat_title in target_cats:
 				target_pages.add(cat_link.page_id)
-			if args.verbose and cat_count % CAT_VERBOSE_FACTOR == 0:
+			if verbose and cat_count % CAT_VERBOSE_FACTOR == 0:
 				print(f'{cat_count:,}')
-		if args.verbose:
-			print(f'Found {len(target_pages):,} {args.language} terms.')
+		if verbose:
+			print(f'Found {len(target_pages):,} {language} terms.')
 
-	if args.verbose:
+	if verbose:
 		print('Filtering pages:')
-	with open(args.output_path, 'w', encoding='utf-8') as out_file:
+	with open(output_path, 'w', encoding='utf-8') as out_file:
 		out_file.write('<mediawiki>\n  ')
-		for page_count, page in enumerate(parsing.etree_helpers.pages_gen(args.input_path)):
+		for page_count, page in enumerate(parsing.etree_helpers.pages_gen(input_path)):
 			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
 			try:
-				if args.cats_path and page_id not in target_pages:
+				if cats_path and page_id not in target_pages:
 						continue
 				text_elem = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text')
 				# Perform a fast substring search first to avoid parsing most irrelevant pages
-				if args.language in text_elem.text:
+				if language in text_elem.text:
 					wikitext = wikitextparser.parse(text_elem.text)
 					for section in wikitext.get_sections(level=2):
 						section_title = section.title.strip()
 						# Any text before the first heading will be considered its own section with an empty title
-						if section_title and section_title == args.language:
+						if section_title and section_title == language:
 							text_elem.text = str(section)
 							page_xml = xet.tostring(page, encoding='unicode')
 							out_file.write(f'{page_xml}')
@@ -60,7 +63,7 @@ def main():
 
 			finally:
 				page.clear()
-				if args.verbose and page_count % PAGE_VERBOSE_FACTOR == 0:
+				if verbose and page_count % PAGE_VERBOSE_FACTOR == 0:
 					print(f'{page_count:,}')
 
 		out_file.write('</mediawiki>\n')

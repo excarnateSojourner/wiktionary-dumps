@@ -1,9 +1,16 @@
 # Ignore dump directories, which I name based on the date of the dump (with the year first)
 2*
+# Ignore obsolete scripts
 archive
 sandbox.*
+test/output_data/*
+
+# Vim swap files
 *.swp
+
+# Python caches
 __pycache__/
 
 # line_profiler / kernprof
 *.lprof
+

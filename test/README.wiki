@@ -1,1 +1,50 @@
-These tiny, fake data files have been artificially created to resemble a trivially small but cohesive set of dictionary entries, sense labels, categories, templates, and redirects. They allow scripts to be run to completion instantly, rather than waiting for a script to process an entire real data file only to find a typo in the writing of the output.
+These tiny, fake data files have been artificially created to resemble a trivially small but cohesive set of dictionary entries, sense labels, categories, templates, and redirects.
+
+==List of pages==
+
+{|
+! Page ID
+! Namespace ID
+! Page title (with namespace prefix)
+! Notes
+|-
+| 1
+| 14
+| Category:English language
+|
+|-
+| 2
+| 14
+| Category:English lemmas
+|
+|-
+| 3
+| 14
+| Category:English nouns
+|
+|-
+| 4
+| 14
+| Category:English verbs
+|
+|-
+| 5
+| 10
+| Template:label
+|
+|-
+| 6
+| 10
+| Template:lb
+| Redirects to Template:label.
+|-
+| 7
+| 0
+| dermatocyst
+| A member of Category:English lemmas and Category:English nouns.
+|-
+| 8
+| 0
+| aggravate
+| A member of Category:English lemmas and Category:English verbs.
+|}

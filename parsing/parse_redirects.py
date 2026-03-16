@@ -67,6 +67,5 @@ def add_redirects(pages: set[int] | set[tuple[int, str]], redirects_path: str) -
 				pages.add((red.src_ns, red.src_title))
 	return pages
 
-
 if __name__ == '__main__':
 	main()
