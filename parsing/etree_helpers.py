@@ -33,8 +33,3 @@ def pages_gen(pages_path: str) -> collections.abc.Iterator[xet.Element]:
 	for event, elem in xet.iterparse(pages_path):
 		if tag_without_xml_ns_is(elem, 'page'):
 			yield elem
-
-def get_mw_namespaces(path: str) -> dict[int, str]:
-	mw_ns_elem = next(elem for _, elem in xet.iterparse(path) if tag_without_xml_ns_is(elem, 'namespaces'))
-	rm_xml_nses(mw_ns_elem)
-	return {int(child.get('key')): child.text or '' for child in mw_ns_elem if child.tag == 'namespace'}
