@@ -15,6 +15,14 @@ import parsing.ns
 import parsing.lang
 import test.test_helpers
 
+def prepare_data() -> None:
+	dt = test.test_helpers.DumpsTest
+	parsing.parse_stubs.parse_stubs(dt.raw_stubs_sql_path, dt.parsed_stubs_path)
+	parsing.parse_redirects.parse_redirects(dt.raw_redirects_path, dt.parsed_stubs_path, dt.parsed_redirects_path)
+	parsing.parse_cats.parse_cats(dt.raw_cats_path, dt.parsed_stubs_path, dt.parsed_cats_path)
+	parsing.ns.namespace_filter(dt.raw_articles_path, namespace_groups=[[0]], output_path_prefix=dt.parsed_mainspace_pages_path.removesuffix('0.xml'))
+	parsing.lang.language_filter(dt.parsed_mainspace_pages_path, dt.parsed_mainspace_english_pages_path, 'English', dt.parsed_cats_path)
+
 class TestSQLHelpers(test.test_helpers.DumpsTest):
 	def test_parse_sql(self):
 		stub_master = parsing.parse_stubs.StubMaster(self.parsed_stubs_path)
@@ -29,8 +37,7 @@ class TestEtreeHelpers(test.test_helpers.DumpsTest):
 	def setUp(self):
 		# Save just the first <page>
 		# Looks like etree_helpers.pages_gen, but does not remove XML namespaces
-		self.pages_path = self.raw_pages_path
-		for event, elem in xet.iterparse(self.pages_path):
+		for end_event, elem in xet.iterparse(self.raw_pages_path):
 			if re.fullmatch(parsing.etree_helpers.XML_NS_PATTERN + r'page', elem.tag):
 				self.example_page = elem
 				break
@@ -49,13 +56,10 @@ class TestEtreeHelpers(test.test_helpers.DumpsTest):
 		page = parsing.etree_helpers.rm_xml_nses(self.example_page)
 		assert_no_xml_nses(page)
 
-	def test_find_child(self):
-		id_elem = parsing.etree_helpers.find_child(self.example_page, 'id')
-		self.assertEqual(id_elem.text, '1')
-
 	def test_pages_gen(self):
-		page_actual = next(parsing.etree_helpers.pages_gen(self.pages_path))
-		self.assertEqual(page_actual.tag, self.example_page.tag)
+		page_actual = next(parsing.etree_helpers.pages_gen(self.raw_pages_path))
+		expected_tag = re.sub(parsing.etree_helpers.XML_NS_PATTERN, '', self.example_page.tag)
+		self.assertEqual(page_actual.tag, expected_tag)
 		self.assertEqual(page_actual.text, self.example_page.text)
 
 class TestParseStubs(test.test_helpers.DumpsTest):
@@ -126,9 +130,9 @@ class TestParseCats(test.test_helpers.DumpsTest):
 
 class TestNs(test.test_helpers.DumpsTest):
 	def test_namespace_filter(self):
-		parsing.ns.namespace_filter(self.raw_articles_path, [[0]], self.output_mainspace_pages_prefix)
-		first_page: xet.Element = next(parsing.etree_helpers.pages_gen(self.output_mainspace_pages_prefix + '0.xml'))
-		self.assertEqual(parsing.etree_helpers.find_child(first_page, 'ns').text, '0')
+		parsing.ns.namespace_filter(self.raw_articles_path, [[0]], self.output_mainspace_pages_path.removesuffix('0.xml'))
+		first_page: xet.Element = next(parsing.etree_helpers.pages_gen(self.output_mainspace_pages_path))
+		self.assertEqual(first_page.findtext('ns'), '0')
 
 class TestLang(test.test_helpers.DumpsTest):
 	def setUp(self):
@@ -137,7 +141,7 @@ class TestLang(test.test_helpers.DumpsTest):
 	def test_language_filter(self):
 		parsing.lang.language_filter(self.parsed_mainspace_pages_path, self.output_mainspace_english_pages_path, self.example_lang, self.parsed_cats_path)
 		first_page: xet.Element = next(parsing.etree_helpers.pages_gen(self.output_mainspace_english_pages_path))
-		text_elem: xet.Element = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(first_page, 'revision'), 'text')
+		text_elem: xet.Element = first_page.find('./revision/text')
 		wikitext = wikitextparser.parse(text_elem.text)
 		sections = wikitext.get_sections(level=2)
 		english_sections = [s for s in sections if s.title.strip() == self.example_lang]
@@ -145,4 +149,5 @@ class TestLang(test.test_helpers.DumpsTest):
 		self.assertEqual(len(english_sections), 1, msg=f'All level 2 headings: {section_titles}')
 
 if __name__ == '__main__':
+	prepare_data()
 	unittest.main()

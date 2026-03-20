@@ -15,21 +15,11 @@ def rm_xml_nses(elem: xet.Element) -> xet.Element:
 		rm_xml_nses(child)
 	return elem
 
-def find_child(elem: xet.Element, tag: str, ignore_xml_nses: bool = True) -> xet.Element | None:
-	'''
-	Like xet.Element.findtext(), but without the hassle of XML namespaces.
-	ignore_xml_nses indicates whether XML namespaces should be removed before comparing the tags of children of elem.
-	'''
-	try:
-		if ignore_xml_nses:
-			found = next(child for child in elem if tag_without_xml_ns_is(child, tag))
-		else:
-			found = next(child for child in elem if child.tag == tag)
-	except StopIteration:
-		return None
-	return found
-
 def pages_gen(pages_path: str) -> collections.abc.Iterator[xet.Element]:
-	for event, elem in xet.iterparse(pages_path):
+	for end_event, elem in xet.iterparse(pages_path):
 		if tag_without_xml_ns_is(elem, 'page'):
-			yield elem
+			yield rm_xml_nses(elem)
+
+			# Even though the docs say iterparse is useful for reading large documents without holding them wholly in memory, it still builds a tree in the background as it goes, using memory proportional to the size of the document!
+			# Since effectively all the content in our XML is in <page>s, by clearing these as we go we prevent unnecessary hogging of memory
+			elem.clear()

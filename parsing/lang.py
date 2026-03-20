@@ -27,15 +27,15 @@ def main():
 
 def language_filter(input_path: str, output_path: str, language: str = 'English', cats_path: str | None = None, verbose: bool = False) -> None:
 	target_cats = [f'{language} lemmas', f'{language} non-lemma forms']
-	target_pages = set()
+	target_pages: set[int] = set()
 	if verbose:
 		print('Reading in category data:')
 	if cats_path:
 		for cat_count, cat_link in enumerate(parsing.parse_cats.cats_gen(cats_path)):
-			if cat_link.cat_title in target_cats:
-				target_pages.add(cat_link.page_id)
 			if verbose and cat_count % CAT_VERBOSE_FACTOR == 0:
 				print(f'{cat_count:,}')
+			if cat_link.cat_title in target_cats:
+				target_pages.add(cat_link.page_id)
 		if verbose:
 			print(f'Found {len(target_pages):,} {language} terms.')
 
@@ -44,27 +44,25 @@ def language_filter(input_path: str, output_path: str, language: str = 'English'
 	with open(output_path, 'w', encoding='utf-8') as out_file:
 		out_file.write('<mediawiki>\n  ')
 		for page_count, page in enumerate(parsing.etree_helpers.pages_gen(input_path)):
-			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
-			try:
-				if cats_path and page_id not in target_pages:
-						continue
-				text_elem = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text')
-				# Perform a fast substring search first to avoid parsing most irrelevant pages
-				if language in text_elem.text:
-					wikitext = wikitextparser.parse(text_elem.text)
-					for section in wikitext.get_sections(level=2):
-						section_title = section.title.strip()
-						# Any text before the first heading will be considered its own section with an empty title
-						if section_title and section_title == language:
-							text_elem.text = str(section)
-							page_xml = xet.tostring(page, encoding='unicode')
-							out_file.write(f'{page_xml}')
-							break
+			if verbose and page_count % PAGE_VERBOSE_FACTOR == 0:
+				print(f'{page_count:,}')
 
-			finally:
-				page.clear()
-				if verbose and page_count % PAGE_VERBOSE_FACTOR == 0:
-					print(f'{page_count:,}')
+			page_id = int(page.findtext('./id'))
+			if cats_path and page_id not in target_pages:
+				continue
+			text_elem = page.find('./revision/text')
+			# As of Python 3.13 elements with no children are falsey, so direct comparison with None is necessary here
+			# Perform a fast substring search first to avoid parsing most irrelevant pages
+			if text_elem != None and text_elem.text and language in text_elem.text:
+				wikitext = wikitextparser.parse(text_elem.text)
+				for section in wikitext.get_sections(level=2):
+					section_title = section.title.strip()
+					# Any text before the first heading will be considered its own section with an empty title
+					if section_title and section_title == language:
+						text_elem.text = str(section)
+						page_xml = xet.tostring(page, encoding='unicode')
+						out_file.write(f'{page_xml}')
+						break
 
 		out_file.write('</mediawiki>\n')
 

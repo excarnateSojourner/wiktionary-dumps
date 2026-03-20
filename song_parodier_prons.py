@@ -73,51 +73,48 @@ def main():
 		print('Reading entries:')
 	pron_data: dict[str, dict] = collections.defaultdict(dict)
 	for page_count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
+		if args.verbose and page_count % VERBOSITY_FACTOR == 0:
+			print(f'{page_count:,}')
+
+		page_id = int(page.findtext('./id'))
+		page_title = page.findtext('./title')
+		# [!-~] matches all printable, non-whitespace ASCII characters
+		if not re.fullmatch(r'[!-~]+', page_title):
+			continue
+		text = page.findtext('./revision/text') or ''
+		wikitext = wikitextparser.parse(text)
 		try:
-			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
-			page_title = parsing.etree_helpers.find_child(page, 'title').text
-			# [!-~] matches all printable, non-whitespace ASCII characters
-			if not re.fullmatch(r'[!-~]+', page_title):
-				continue
-			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
-			wikitext = wikitextparser.parse(text)
-			try:
-				lang_sec = next(sec for sec in wikitext.get_sections(level=2) if sec.title == args.language)
-				pron_sec = next(sec for sec in lang_sec.sections if 3 <= sec.level <= 4 and sec.title == 'Pronunciation')
-			except StopIteration:
-				continue
+			lang_sec = next(sec for sec in wikitext.get_sections(level=2) if sec.title == args.language)
+			pron_sec = next(sec for sec in lang_sec.sections if 3 <= sec.level <= 4 and sec.title == 'Pronunciation')
+		except StopIteration:
+			continue
 
-			# Find pronunciations
-			prons = []
-			for temp in pron_sec.templates:
-				if temp.normal_name() != 'IPA':
+		# Find pronunciations
+		prons = []
+		for temp in pron_sec.templates:
+			if temp.normal_name() != 'IPA':
+				continue
+			# Skip over the first argument since it is the language code
+			temp_prons = [arg.value for arg in temp.arguments if arg.positional][1:]
+
+			general_accent = temp.get_arg('a')
+			for i, pron in enumerate(temp_prons, start=1):
+				if args.accents:
+					accent_arg = temp.get_arg(f'a{i}') or general_accent
+					if accent_arg and not any(DEALIAS_ACCENT.get(accent, accent) in args.accents for accent in accent_arg.value.split(',')):
+							continue
+				if not (pron.startswith('/') and pron.endswith('/')):
 					continue
-				# Skip over the first argument since it is the language code
-				temp_prons = [arg.value for arg in temp.arguments if arg.positional][1:]
+				pron = pron[1:-1]
+				if pron.startswith('-') or pron.endswith('-'):
+					continue
+				pron = pron.translate(PRON_TRANS)
+				if pron not in prons:
+					prons.append(pron)
 
-				general_accent = temp.get_arg('a')
-				for i, pron in enumerate(temp_prons, start=1):
-					if args.accents:
-						accent_arg = temp.get_arg(f'a{i}') or general_accent
-						if accent_arg and not any(DEALIAS_ACCENT.get(accent, accent) in args.accents for accent in accent_arg.value.split(',')):
-								continue
-					if not (pron.startswith('/') and pron.endswith('/')):
-						continue
-					pron = pron[1:-1]
-					if pron.startswith('-') or pron.endswith('-'):
-						continue
-					pron = pron.translate(PRON_TRANS)
-					if pron not in prons:
-						prons.append(pron)
-
-			pron_data[page_title]['pronunciations'] = prons
-			if page_id in good_ids:
-				pron_data[page_title]['frequency'] = frequencies.get(page_title.casefold(), 0)
-
-		finally:
-			if args.verbose and page_count % VERBOSITY_FACTOR == 0:
-				print(f'{page_count:,}')
-			page.clear()
+		pron_data[page_title]['pronunciations'] = prons
+		if page_id in good_ids:
+			pron_data[page_title]['frequency'] = frequencies.get(page_title.casefold(), 0)
 
 	with open(args.output_path, 'w', encoding='utf-8') as pron_data_file:
 		json.dump(pron_data, pron_data_file, indent='\t')

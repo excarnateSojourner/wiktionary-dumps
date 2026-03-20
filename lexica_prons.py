@@ -59,35 +59,35 @@ def main():
 	prons: set[str] = set()
 	with open(args.full_output_path, 'w', encoding='utf-8') as full_output_file:
 		for count, page in enumerate(parsing.etree_helpers.pages_gen(args.input_path)):
-			try:
-				if args.ids_path:
-					page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
-					if page_id not in target_ids:
-						continue
-				page_title = parsing.etree_helpers.find_child(page, 'title').text
-				text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
-				wikitext = wikitextparser.parse(text)
-				pron_sections = (sec for sec in wikitext.sections if 3 <= sec.level <= 4 and sec.title == 'Pronunciation')
-				entry_prons: set[str] = set()
-				for section in pron_sections:
-					pron_lists = section.get_lists(pattern=UNORDERED_LIST_PATTERN)
-					for lis in pron_lists:
-						section_prons = prons_from_wikilist(lis,word=page_title if args.warnings else None, accents=TARGET_ACCENTS)
-						if args.lindsey_glides:
-							section_lindsey_prons: set[str] = set()
-							for pron in section_prons:
-								section_lindsey_prons.add(re.sub(LINDSEY_PATTERN, LINDSEY_SUB_FUNC, pron))
-							section_prons = section_lindsey_prons
-						# Lexica does not permit very short or long words
-						section_prons = {pron for pron in section_prons if 3 <= len(pron) <= 9}
-						entry_prons |= section_prons
-				if entry_prons:
-					print(f'{page_title}: {", ".join(entry_prons)}', file=full_output_file)
-					prons |= entry_prons
-			finally:
-				page.clear()
-				if args.verbose and count % VERBOSE_FACTOR == 0:
-					print(f'{count:,}')
+			if args.verbose and count % VERBOSE_FACTOR == 0:
+				print(f'{count:,}')
+
+			if args.ids_path:
+				page_id = int(page.findtext('id'))
+				if page_id not in target_ids:
+					continue
+			page_title = page.findtext('title')
+			text = page.findtext('./revision/text')
+			if not text:
+				continue
+			wikitext = wikitextparser.parse(text)
+			pron_sections = (sec for sec in wikitext.sections if 3 <= sec.level <= 4 and sec.title == 'Pronunciation')
+			entry_prons: set[str] = set()
+			for section in pron_sections:
+				pron_lists = section.get_lists(pattern=UNORDERED_LIST_PATTERN)
+				for lis in pron_lists:
+					section_prons = prons_from_wikilist(lis,word=page_title if args.warnings else None, accents=TARGET_ACCENTS)
+					if args.lindsey_glides:
+						section_lindsey_prons: set[str] = set()
+						for pron in section_prons:
+							section_lindsey_prons.add(re.sub(LINDSEY_PATTERN, LINDSEY_SUB_FUNC, pron))
+						section_prons = section_lindsey_prons
+					# Lexica does not permit very short or long words
+					section_prons = {pron for pron in section_prons if 3 <= len(pron) <= 9}
+					entry_prons |= section_prons
+			if entry_prons:
+				print(f'{page_title}: {", ".join(entry_prons)}', file=full_output_file)
+				prons |= entry_prons
 
 	with open(args.pronunciation_path, 'w', encoding='utf-8') as pronunciation_file:
 		sorted_prons = sorted(prons)

@@ -46,38 +46,35 @@ def main():
 	if args.verbose:
 		print('Searching English entries:')
 	for page in parsing.etree_helpers.pages_gen(args.en_pages_path):
-		try:
-			if int(parsing.etree_helpers.find_child(page, 'id').text) not in lemmas:
-				continue
-			word = parsing.etree_helpers.find_child(page, 'title').text
-			if len(word) == 1:
-				continue
-			if word.isnumeric():
-				continue
-			if ' ' in word:
-				continue
-			'''
-			This script is written to use word frequencies that do not distinguish between lowercase and uppercase.
-			If we're not careful, this will cause some non-lemma words like "was" to appear in the results:
-			1. The loop which searches through entries finds "was", but ignores it since it's not a lemma.
-			2. The same loop then finds the surname "Was" and adds "was" as a key to the quote_counts, marking it as a lemma that has no quotes in its entry.
-			3. The loop that searches through citations pages then reads through "Citations:was", since "was" is marked as a valid lemma, finds 2 quotes, and adds them to the quotes_count. ("Citations:Was" does not exist.)
-			This causes "was" to appear in the results with only 2 quotations, even though the common non-lemma word has plenty of quotations in its entry.
-			To prevent this, ignore any alterntive-case forms of very common words.
-			'''
-			if word != word.casefold() and word_frequencies.get(word.casefold(), 0) > 10 ** 4:
-				continue
-			entry_text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text or ''
-			wikitext = wikitextparser.parse(entry_text)
-			en_section = next(sec for sec in wikitext.get_sections(level=2) if sec.title == 'English')
-			quote_lists = en_section.get_lists(pattern=r'\#+\*')
-			quote_counts[word.casefold()] += sum(len(lis.items) for lis in quote_lists)
-		# Protect cleanup from continues
-		finally:
-			page.clear()
-			if args.verbose and count % VERBOSE_FACTOR == 0:
-				print(f'{count:,}')
-			count += 1
+		if args.verbose and count % VERBOSE_FACTOR == 0:
+			print(f'{count:,}')
+		count += 1
+
+		if int(page.findtext('./id')) not in lemmas:
+			continue
+		word = page.findtext('./title')
+		if len(word) == 1:
+			continue
+		if word.isnumeric():
+			continue
+		if ' ' in word:
+			continue
+		'''
+		This script is written to use word frequencies that do not distinguish between lowercase and uppercase.
+		If we're not careful, this will cause some non-lemma words like "was" to appear in the results:
+		1. The loop which searches through entries finds "was", but ignores it since it's not a lemma.
+		2. The same loop then finds the surname "Was" and adds "was" as a key to the quote_counts, marking it as a lemma that has no quotes in its entry.
+		3. The loop that searches through citations pages then reads through "Citations:was", since "was" is marked as a valid lemma, finds 2 quotes, and adds them to the quotes_count. ("Citations:Was" does not exist.)
+		This causes "was" to appear in the results with only 2 quotations, even though the common non-lemma word has plenty of quotations in its entry.
+		To prevent this, ignore any alterntive-case forms of very common words.
+		'''
+		if word != word.casefold() and word_frequencies.get(word.casefold(), 0) > 10 ** 4:
+			continue
+		entry_text = page.findtext('./revision/text') or ''
+		wikitext = wikitextparser.parse(entry_text)
+		en_section = next(sec for sec in wikitext.get_sections(level=2) if sec.title == 'English')
+		quote_lists = en_section.get_lists(pattern=r'\#+\*')
+		quote_counts[word.casefold()] += sum(len(lis.items) for lis in quote_lists)
 
 	if args.verbose:
 		print(f'Found {len(quote_counts):,} entries for single-word English lemmas with a total of {quote_counts.total():,} quotations.\n')
@@ -88,8 +85,8 @@ def main():
 			print(f'{count:,}')
 		count += 1
 
-		word = parsing.etree_helpers.find_child(page, 'title').text.removeprefix('Citations:')
-		page_text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text or ''
+		word = page.findtext('./title').text.removeprefix('Citations:')
+		page_text = page.findtext('./revision/text') or ''
 		wikitext = wikitextparser.parse(page_text)
 		# Turn citation templates into headings (as they render on the site) so that we can parse sections
 		# But for the text of the heading just use the language code from the template
@@ -108,7 +105,6 @@ def main():
 			except StopIteration:
 				# A citations page exists, but it's only for other languages
 				pass
-		page.clear()
 
 	# Assume word frequencies are already sorted to have the most frequent words at the top
 	with open(args.output_path, 'w') as out_file:

@@ -29,21 +29,23 @@ def main():
 
 	terms_lacking_prons = []
 	for count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
-		page_title = parsing.etree_helpers.find_child(page, 'title').text
+		if args.verbose and count % VERBOSE_FACTOR == 0:
+			print(f'{count:,}')
+
+		page_title = page.findtext('./title')
 		# All-caps terms tend to be acronyms, pronounced as their individual letters
 		# Numeric terms tend to be pronounced as numbers or digits
 		if ' ' not in page_title and '-' not in page_title and not page_title.isupper() and not page_title.isnumeric() and freq(page_title) >= FREQUENCY_THRESHOLD:
-			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
+			text = page.findtext('./revision/text')
+			if not text:
+				continue
 			wikitext = wikitextparser.parse(text)
 			lang_section = next(sec for sec in wikitext.get_sections(level=2) if sec.title == 'English')
 			if not any(section.title == 'Pronunciation' and 3 <= section.level <= 5 for section in lang_section.sections):
 				terms_lacking_prons.append(page_title.casefold() if args.lowercase else page_title)
-		page.clear()
-
-		if args.verbose and count % VERBOSE_FACTOR == 0:
-			print(f'{count:,}')
 
 	terms_lacking_prons.sort(key=freq, reverse=True)
+
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:
 		for term in terms_lacking_prons:
 			print(term, file=out_file)

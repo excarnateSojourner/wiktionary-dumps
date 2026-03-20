@@ -257,9 +257,11 @@ class TermFilter:
 			print('\nLoading pages data:')
 
 		for count, page in enumerate(parsing.etree_helpers.pages_gen(pages_path)):
-			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
-			page_title = parsing.etree_helpers.find_child(page, 'title').text
-			page_text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
+			page_id = int(page.findtext('./id'))
+			page_title = page.findtext('./title')
+			page_text = page.findtext('./revision/text')
+			if not page_text:
+				continue
 			if not (bad_terms and page_id in bad_terms) and not (regex and not re.fullmatch(regex, page_title)):
 				if parts_of_speech:
 					# Assume lang has removed all L2 sections except for the relevant one
@@ -274,13 +276,11 @@ class TermFilter:
 						else:
 							if section.title.casefold() in parts_of_speech:
 								sense_temps[page_id].extend(temps_in_section(section.contents))
-					page.clear()
 
 				# No parts of speech specified
 				else:
 					sense_temps[page_id] = temps_in_section(page_text)
 
-			page.clear()
 			if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
 				print(f'{count:,}')
 

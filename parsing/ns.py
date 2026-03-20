@@ -27,19 +27,15 @@ def namespace_filter(input_path: str, namespace_groups: list[list[int]], output_
 		group_file.write('<mediawiki>\n  ')
 
 	for count, page in enumerate(parsing.etree_helpers.pages_gen(input_path)):
-		actual_ns = int(parsing.etree_helpers.find_child(page, 'ns').text)
+		if verbose and count % VERBOSE_FACTOR == 0:
+			print(f'{count:,}')
+
+		actual_ns = int(page.findtext('./ns'))
 		out_file = ns_files.get(actual_ns)
 		if out_file:
 			page = parsing.etree_helpers.rm_xml_nses(page)
 			xml_str = xet.tostring(page, encoding='unicode')
 			out_file.write(xml_str)
-
-		# Even though the docs say iterparse is useful for reading large documents without holding them wholly in memory, it still builds a tree in the background as it goes, using memory proportional to the size of the document!
-		# Since effectively all the content in our XML is in <page>s, by clearing these as we go we prevent unnecessary hogging of memory
-		page.clear()
-
-		if verbose and count % VERBOSE_FACTOR == 0:
-			print(f'{count:,}')
 
 	for group in namespace_groups:
 		group_file = ns_files[group[0]]

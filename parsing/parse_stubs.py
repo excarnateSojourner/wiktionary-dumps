@@ -36,22 +36,19 @@ def parse_from_xml(xml_path: str, verbose: bool = False) -> collections.abc.Iter
 	for page_count, page in enumerate(parsing.etree_helpers.pages_gen(xml_path)):
 		parts = []
 		for child_tag in ['id', 'ns', 'title']:
-			child = parsing.etree_helpers.find_child(page, child_tag)
-			# As of Python 3.13 elements that have no children are falsey!
-			# So comparison with None is necessary
-			if child is None:
+			child_text = page.findtext(f'./{child_tag}')
+			if not child_text:
 				print(f'Warning: Skipping a page that is missing <{child_tag}>.')
 				break
 			else:
-				parts.append(child.text)
+				parts.append(child_text)
 		# Else branch of for loop
 		else:
-			mw_ns, colon, parts[2] = parts[2].partition(':')
-			stub = Stub(*parts)
 			if verbose and page_count % XML_VERBOSITY_FACTOR == 0:
 				print(f'{page_count:,}')
+			mw_ns, colon, parts[2] = parts[2].partition(':')
+			stub = Stub(*parts)
 			yield stub
-		page.clear()
 
 class StubMaster():
 	def __init__(self, stubs_path: str):

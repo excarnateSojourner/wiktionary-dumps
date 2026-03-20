@@ -13,13 +13,14 @@ def main():
 
 	hashes = collections.defaultdict(list)
 	for page_count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
-		title = parsing.etree_helpers.find_child(page, 'title').text
-		if not title.endswith('/documentation'):
-			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
-			if text and not text.startswith('#REDIRECT'):
-				hashes[hash(text)].append(title)
 		if page_count % VERBOSE_FACTOR == 0:
 			print(f'{page_count:,}')
+
+		title = page.findtext('./title')
+		if not title.endswith('/documentation'):
+			text = page.findtext('./revision/text')
+			if text and not text.startswith('#REDIRECT'):
+				hashes[hash(text)].append(title)
 
 	with open(args.output_path, 'w') as out_file:
 		for hash_, titles in hashes.items():

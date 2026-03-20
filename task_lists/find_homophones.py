@@ -31,39 +31,37 @@ def main() -> None:
 	# Homophone data maps each term with the specified pronunciation to the set of other terms that are already listed as its homophones
 	prons_to_titles: dict[str, dict[str, set[str]]] = collections.defaultdict(dict)
 	for count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
-		try:
-			if args.target_ids_path:
-				page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
-				if page_id not in target_ids:
-					continue
-			title = parsing.etree_helpers.find_child(page, 'title').text
-			text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
-			wikitext = wikitextparser.parse(text)
-			pron_sections = [sec for sec in wikitext.sections if 3 <= sec.level <= 4 and sec.title.strip() == 'Pronunciation']
-			for section in pron_sections:
-				existing_hmps: set[str] = set()
-				for temp in section.templates:
-					if temp.normal_name().casefold() in HMP_ALIASES:
-							for arg in temp.arguments[1:]:
-								if arg.positional:
-									hmp = arg.value
-									if '<' in hmp:
-										hmp = re.sub(r'<.*?>', '', hmp)
-									existing_hmps.add(hmp)
-				for temp in section.templates:
-					if temp.normal_name().casefold() == 'ipa':
-						prons = [arg.value for arg in temp.arguments[1:] if arg.positional]
-						for pron in prons:
-							if not (pron.startswith('/') and pron.endswith('/')):
-								continue
-							pron = pron[1:-1]
-							if pron.startswith('-') or pron.endswith('-'):
-								continue
-							prons_to_titles[pron][title] = existing_hmps
-		finally:
-			page.clear()
-			if args.verbose and count % VERBOSE_FACTOR == 0:
-				print(f'{count:,}')
+		if args.verbose and count % VERBOSE_FACTOR == 0:
+			print(f'{count:,}')
+
+		if args.target_ids_path:
+			page_id = int(page.findtext('./id'))
+			if page_id not in target_ids:
+				continue
+		title = page.findtext('./title')
+		text = page.findtext('./revision/text') or ''
+		wikitext = wikitextparser.parse(text)
+		pron_sections = [sec for sec in wikitext.sections if 3 <= sec.level <= 4 and sec.title.strip() == 'Pronunciation']
+		for section in pron_sections:
+			existing_hmps: set[str] = set()
+			for temp in section.templates:
+				if temp.normal_name().casefold() in HMP_ALIASES:
+						for arg in temp.arguments[1:]:
+							if arg.positional:
+								hmp = arg.value
+								if '<' in hmp:
+									hmp = re.sub(r'<.*?>', '', hmp)
+								existing_hmps.add(hmp)
+			for temp in section.templates:
+				if temp.normal_name().casefold() == 'ipa':
+					prons = [arg.value for arg in temp.arguments[1:] if arg.positional]
+					for pron in prons:
+						if not (pron.startswith('/') and pron.endswith('/')):
+							continue
+						pron = pron[1:-1]
+						if pron.startswith('-') or pron.endswith('-'):
+							continue
+						prons_to_titles[pron][title] = existing_hmps
 
 	if args.verbose:
 		print('Comparing pronunciations...')

@@ -62,12 +62,13 @@ class CategoryMaster():
 			print('Loading all categories:')
 		self.cats: dict[int, Cat] = collections.defaultdict(Cat)
 		for count, cat_link in enumerate(cats_gen(categories_path)):
+			if verbose and count % CAT_MASTER_VERBOSE_FACTOR == 0:
+				print(f'{count:,}')
+
 			if cat_link.page_ns == CAT_NAMESPACE_ID:
 				self.cats[cat_link.cat_id].subcats[cat_link.page_id] = cat_link.page_title
 			else:
 				self.cats[cat_link.cat_id].pages.add(parsing.parse_stubs.Stub(cat_link.page_id, cat_link.page_ns, cat_link.page_title))
-			if verbose and count % CAT_MASTER_VERBOSE_FACTOR == 0:
-				print(f'{count:,}')
 
 	def subcats(self, cat_id: int, titles: bool = False) -> set[int] | set[str]:
 		if titles:

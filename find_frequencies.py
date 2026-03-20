@@ -27,30 +27,28 @@ def main():
 	frequencies = collections.Counter()
 	total_words = 0
 	for count, page in enumerate(parsing.etree_helpers.pages_gen(args.pages_path)):
+		if count % VERBOSE_FACTOR == 0:
+			print(f'{count:,}')
+
+		page_id = int(page.findtext('./id').text)
+		if page_id not in good_ids:
+			continue
+		raw_text = page.findtext('./revision/text')
+		if not raw_text:
+			continue
 		try:
-			page_id = int(parsing.etree_helpers.find_child(page, 'id').text)
-			if page_id not in good_ids:
-				continue
-			raw_text = parsing.etree_helpers.find_child(parsing.etree_helpers.find_child(page, 'revision'), 'text').text
-			if not raw_text:
-				continue
-			try:
-				text = wikitextparser.parse(raw_text).plain_text()
-			# Raised by the 24-10-20 dump
-			except IndexError:
-				continue
-			valid_words = []
-			for word in re.split(WORD_BOUNDARY_PATTERN, text):
-				word = word.strip("'")
-				if word and all(ch in VALID_CHARS for ch in word):
-					valid_words.append(word.casefold() if args.lowercase else word)
-					total_words += 1
-			frequencies.update(valid_words)
-		# Just to catch continues
-		finally:
-			page.clear()
-			if count % VERBOSE_FACTOR == 0:
-				print(f'{count:,}')
+			text = wikitextparser.parse(raw_text).plain_text()
+		# Raised by the 24-10-20 dump
+		except IndexError:
+			continue
+		valid_words = []
+		for word in re.split(WORD_BOUNDARY_PATTERN, text):
+			word = word.strip("'")
+			if word and all(ch in VALID_CHARS for ch in word):
+				valid_words.append(word.casefold() if args.lowercase else word)
+				total_words += 1
+		frequencies.update(valid_words)
+
 	print(f'Total words counted: {total_words:,}')
 
 	with open(args.output_path, 'w', encoding='utf-8') as out_file:

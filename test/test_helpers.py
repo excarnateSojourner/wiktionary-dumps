@@ -34,5 +34,5 @@ class DumpsTest(unittest.TestCase):
 	output_redirects_path = output_path('redirects.csv')
 	output_cats_path = output_path('cats.csv')
 	# ns.namespace_filter automatically appends the namespace ID and the file extension
-	output_mainspace_pages_prefix = output_path('pages_')
+	output_mainspace_pages_path = output_path('pages_0.xml')
 	output_mainspace_english_pages_path = output_path('pages_0_en.xml')
