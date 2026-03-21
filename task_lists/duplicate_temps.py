@@ -19,7 +19,7 @@ def main():
 		title = page.findtext('./title')
 		if not title.endswith('/documentation'):
 			text = page.findtext('./revision/text')
-			if text and not text.startswith('#REDIRECT'):
+			if text and not text.casefold().startswith('#redirect'):
 				hashes[hash(text)].append(title)
 
 	with open(args.output_path, 'w') as out_file:
