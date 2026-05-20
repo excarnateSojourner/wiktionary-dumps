@@ -8,21 +8,46 @@ import json
 import wikitextparser
 
 import parsing.etree_helpers
+import parsing.parse_redirects
 
-FREQUENCY_THRESHOLD = 256
+FREQUENCY_THRESHOLD = 100
 VERBOSE_FACTOR = 10 ** 5
+
+SPELLING_FORM_OF_TEMPS = [
+	'alternative case form of',
+	'alternative spelling of',
+	'archaic spelling of',
+	'dated spelling of',
+	'deliberate misspelling of',
+	'honorific alternative case form of',
+	'informal spelling of',
+	'medieval spelling of',
+	'misspelling of',
+	'nonstandard spelling of',
+	'obsolete spelling of',
+	'rare spelling of',
+	'spelling of',
+	'standard spelling of',
+	'superseded spelling of',
+	'uncommon spelling of'
+]
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('pages_path')
-	parser.add_argument('freqs_path')
-	parser.add_argument('output_path')
+	parser.add_argument('pages_path', help='Path of the XML file containing the wikitext of entries to check for existing pronunciations.')
+	parser.add_argument('freqs_path', help='Path of a JSON file mapping words to their frequencies.')
+	parser.add_argument('redirects_path', help='Path of a CSV file containing redirects, as produced by parse_redirects.')
+	parser.add_argument('output_path', help='Path to write the wikitext list of results to.')
 	parser.add_argument('-l', '--lowercase', action='store_true', help='Lowercase terms when looking up their frequencies. Intended to be used in conjunction with the same option of find_frequencies.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
 	with open(args.freqs_path, encoding='utf-8') as freq_file:
 		frequencies: dict[str, int] = json.load(freq_file)
+
+	form_of_temps_with_ns = {(10, temp) for temp in SPELLING_FORM_OF_TEMPS}
+	form_of_temps_with_redirects: set[(int, str)] = parsing.parse_redirects.add_redirects(form_of_temps_with_ns, args.redirects_path)
+	form_of_temps: set[str] = {pair[1] for pair in form_of_temps_with_redirects}
 
 	def freq(term: str) -> int:
 		return frequencies.get(page_title.casefold() if args.lowercase else page_title, 0)
@@ -41,8 +66,19 @@ def main():
 				continue
 			wikitext = wikitextparser.parse(text)
 			lang_section = next(sec for sec in wikitext.get_sections(level=2) if sec.title == 'English')
-			if not any(section.title == 'Pronunciation' and 3 <= section.level <= 5 for section in lang_section.sections):
-				terms_lacking_prons.append(page_title.casefold() if args.lowercase else page_title)
+			if any(section.title == 'Pronunciation' and 3 <= section.level <= 5 for section in lang_section.sections):
+				continue
+
+			# Look for a sense that is not a spelling-form-of template
+			has_valid_sense = False
+			for sense_list in lang_section.get_lists('\#'):
+				for sense in sense_list.items:
+					sense_temps = wikitextparser.parse(sense).templates
+					if {temp.normal_name() for temp in sense_temps}.isdisjoint(form_of_temps):
+						has_valid_sense = True
+			if not has_valid_sense:
+				continue
+			terms_lacking_prons.append(page_title.casefold() if args.lowercase else page_title)
 
 	terms_lacking_prons.sort(key=freq, reverse=True)
 
