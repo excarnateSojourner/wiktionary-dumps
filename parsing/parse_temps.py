@@ -6,7 +6,6 @@ import re
 import parsing.parse_stubs
 import parsing.sql_helpers
 
-SQL_VERBOSE_FACTOR = 10 ** 7
 TEMP_NAMESPACE_ID = 10
 TEMP_NAMESPACE_PREFIX = 'Template:'
 

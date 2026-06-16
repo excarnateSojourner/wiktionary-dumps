@@ -99,5 +99,8 @@ class CategoryMaster():
 	def __len__(self) -> int:
 		return len(self.cats)
 
+	def __iter__(self) -> collections.abc.Iterator[tuple[int, Cat]]:
+		return self.cats.items()
+
 if __name__ == '__main__':
 	main()

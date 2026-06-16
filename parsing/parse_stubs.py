@@ -67,6 +67,9 @@ class StubMaster():
 	def ns(self, id_: int) -> int:
 		return self.ids_to_ns_titles[id_][0]
 
+	def __len__(self) -> int:
+		return len(self.ids_to_ns_titles)
+
 	def __iter__(self) -> collections.abc.Iterator[Stub]:
 		for id_, ns_title in self.ids_to_ns_titles.items():
 			ns, title = ns_title
