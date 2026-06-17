@@ -19,6 +19,7 @@ class DumpsTest(unittest.TestCase):
 
 	raw_stubs_sql_path = raw_path('page.sql')
 	raw_stubs_xml_path = raw_path('stubs-meta-current.xml')
+	raw_link_targets_path = raw_path('linktarget.sql')
 	raw_redirects_path = raw_path('redirect.sql')
 	raw_cats_path = raw_path('categorylinks.sql')
 	raw_pages_path = raw_path('pages-meta-current.xml')
