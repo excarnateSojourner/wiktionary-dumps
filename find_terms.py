@@ -40,7 +40,7 @@ def main() -> None:
 	parser.add_argument('-b', '--exclude-labels', nargs='+', default=[], help='If a sense of a term has one of these labels, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.) Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
 	parser.add_argument('-t', '--exclude-temps', nargs='+', default=[], help='If a given template given here is used in a sense of a term, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.)')
 	# f for form-of
-	parser.add_argument('-f', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering. If you want to entirely avoid following form-of links in entries, use this option with the path of an empty file.')
+	parser.add_argument('-f', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering.')
 	# n for noun
 	parser.add_argument('-n', '--parts-of-speech', nargs='+', default=[], help='If a sense is not one of these parts of speech (think noun, verb, etc) then it will not support the inclusion of a term. Case insensitive.')
 	# u is the first untaken letter in 'output ids'
@@ -136,11 +136,13 @@ def main() -> None:
 	if not form_of_temps:
 		if config.verbose:
 			print('Finding all form-of templates and their aliases:')
+		# Save form-of templates as titles rather than page IDs so that the cache file is human-readable
 		if config.small_ram:
-			form_of_temps = deep_cat.deep_cat_filter_slow(config.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
+			form_of_temps_canonical_titles = deep_cat.deep_cat_filter_slow(config.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
 		else:
-			form_of_temps = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
-	form_of_temps = parsing.parse_redirects.add_redirects({(parsing.parse_temps.TEMP_NAMESPACE_ID, temp_title) for temp_title in form_of_temps}, config.redirects_path)
+			form_of_temps_canonical_titles = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
+	form_of_temps_canonical_titles_nses = {(parsing.parse_temps.TEMP_NAMESPACE_ID, temp_title) for temp_title in form_of_temps_canonical_titles}
+	form_of_temps = {title for ns, title in parsing.parse_redirects.add_redirects(form_of_temps_canonical_titles_nses, config.redirects_path)}
 	# Attempt to cache form-of templates
 	try:
 		with open(config.temps_cache_path, 'x', encoding='utf-8') as temps_cache_file:
