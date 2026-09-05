@@ -110,8 +110,6 @@ def main() -> None:
 			pages = deep_cat.deep_cat_filter_slow(config.cats_path, cats, return_titles=return_titles, max_depth=depth, verbose=config.verbose)
 		else:
 			pages = deep_cat.deep_cat_filter(cat_master, cats, return_titles=return_titles, max_depth=depth, verbose=config.verbose)
-		if config.verbose:
-			print()
 		return pages
 
 	def cat_titles_to_ids(titles: collections.abc.Iterable[str]) -> set[int]:

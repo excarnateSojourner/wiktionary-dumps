@@ -76,7 +76,8 @@ def deep_cat_filter_slow(
 					if cat_link.page_id not in ever_selected_cats:
 						next_cats.add(cat_link.page_id)
 						ever_selected_cats.add(cat_link.page_id)
-						print(cat_link.page_title)
+						if verbose:
+							print(cat_link.page_title)
 				elif return_titles:
 					select_pages.add(cat_link.page_title)
 				else:
@@ -84,6 +85,8 @@ def deep_cat_filter_slow(
 		select_cats = next_cats
 		next_cats = set()
 		depth += 1
+	if verbose:
+		print()
 
 	return select_pages
 
