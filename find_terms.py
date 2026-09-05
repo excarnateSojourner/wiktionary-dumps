@@ -103,6 +103,15 @@ def main() -> None:
 				for line in initial_terms_file:
 					good_terms.append(stub_master.id(line[:-1]))
 
+	def deep_cat_proxy(cats: set[int], return_titles: bool, depth: int = config.depth):
+		if config.small_ram:
+			pages = deep_cat.deep_cat_filter_slow(config.cats_path, cats, return_titles=return_titles, max_depth=depth, verbose=config.verbose)
+		else:
+			pages = deep_cat.deep_cat_filter(cat_master, cats, return_titles=return_titles, max_depth=depth, verbose=config.verbose)
+		if config.verbose:
+			print()
+		return pages
+
 	def cat_titles_to_ids(titles: collections.abc.Iterable[str]) -> set[int]:
 		ids = set()
 		for title in titles:
@@ -111,19 +120,11 @@ def main() -> None:
 
 	if config.include_cats:
 		include_cats = cat_titles_to_ids(config.include_cats)
-		if config.small_ram:
-			good_terms.extend(deep_cat.deep_cat_filter_slow(config.cats_path, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose))
-		else:
-			good_terms.extend(deep_cat.deep_cat_filter(cat_master, include_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose))
+		good_terms.extend(deep_cat_proxy(include_cats, return_titles=False))
+	cat_bad_terms: set[int] = set()
 	if config.exclude_cats:
 		exclude_cats = cat_titles_to_ids(config.exclude_cats)
-		cat_bad_terms: set[int] = set()
-		if config.small_ram:
-			cat_bad_terms = deep_cat.deep_cat_filter_slow(config.cats_path, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
-		else:
-			cat_bad_terms = deep_cat.deep_cat_filter(cat_master, exclude_cats, return_titles=False, max_depth=config.depth, verbose=config.verbose)
-	else:
-		cat_bad_terms = set()
+		cat_bad_terms = deep_cat_proxy(exclude_cats, return_titles=False)
 
 	form_of_temps: set[str] = set()
 	if config.temps_cache_path:
@@ -137,10 +138,7 @@ def main() -> None:
 		if config.verbose:
 			print('Finding all form-of templates and their aliases:')
 		# Save form-of templates as titles rather than page IDs so that the cache file is human-readable
-		if config.small_ram:
-			form_of_temps_canonical_titles = deep_cat.deep_cat_filter_slow(config.cats_path, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
-		else:
-			form_of_temps_canonical_titles = deep_cat.deep_cat_filter(cat_master, {FORM_OF_TEMP_CAT_ID}, return_titles=True, verbose=config.verbose)
+		form_of_temps_canonical_titles = deep_cat_proxy({FORM_OF_TEMP_CAT_ID}, return_titles=True)
 	form_of_temps_canonical_titles_nses = {(parsing.parse_temps.TEMP_NAMESPACE_ID, temp_title) for temp_title in form_of_temps_canonical_titles}
 	form_of_temps = {title for ns, title in parsing.parse_redirects.add_redirects(form_of_temps_canonical_titles_nses, config.redirects_path)}
 	# Attempt to cache form-of templates
@@ -151,6 +149,7 @@ def main() -> None:
 	except FileExistsError:
 		pass
 
+	# Free up memory
 	if config.cats_path and not config.small_ram:
 		del cat_master
 
@@ -174,8 +173,7 @@ def main() -> None:
 
 	with open(config.output_path, 'w', encoding='utf-8') as out_file:
 		for entry_id in good_terms:
-				print(entry_id if config.output_ids else stub_master.title(entry_id), file=out_file)
-
+			print(entry_id if config.output_ids else stub_master.title(entry_id), file=out_file)
 
 class TermFilter:
 	def __init__(self,
