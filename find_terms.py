@@ -45,6 +45,8 @@ def main() -> None:
 	parser.add_argument('-n', '--parts-of-speech', nargs='+', default=[], help='If a sense is not one of these parts of speech (think noun, verb, etc) then it will not support the inclusion of a term. Case insensitive.')
 	# u is the first untaken letter in 'output ids'
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Output the MediaWiki entry IDs of the selected entries rather than the titles of the entries.')
+	# h is the first untaken letter alphabetically
+	parser.add_argument('-q', '--sort', action='store_true', help='Sort the titles (case-insensitively) of the selected entries before writing them to the output file. Ignored if --output-ids is given.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
@@ -139,8 +141,8 @@ def main() -> None:
 			print('Finding all form-of templates and their aliases:')
 		# Save form-of templates as titles rather than page IDs so that the cache file is human-readable
 		form_of_temps_canonical_titles = deep_cat_proxy({FORM_OF_TEMP_CAT_ID}, return_titles=True)
-	form_of_temps_canonical_titles_nses = {(parsing.parse_temps.TEMP_NAMESPACE_ID, temp_title) for temp_title in form_of_temps_canonical_titles}
-	form_of_temps = {title for ns, title in parsing.parse_redirects.add_redirects(form_of_temps_canonical_titles_nses, config.redirects_path)}
+		form_of_temps_canonical_titles_nses = {(parsing.parse_temps.TEMP_NAMESPACE_ID, temp_title) for temp_title in form_of_temps_canonical_titles}
+		form_of_temps = {title for ns, title in parsing.parse_redirects.add_redirects(form_of_temps_canonical_titles_nses, config.redirects_path)}
 	# Attempt to cache form-of templates
 	try:
 		with open(config.temps_cache_path, 'x', encoding='utf-8') as temps_cache_file:
@@ -170,10 +172,14 @@ def main() -> None:
 	if config.verbose:
 		print('Checking the senses of each term...')
 	good_terms = [entry_id for entry_id in good_terms if term_filter.check_entry(entry_id)]
+	if not config.output_ids:
+		good_terms = [stub_master.title(entry_id) for entry_id in good_terms]
+		if config.sort:
+			good_terms.sort(key=str.casefold)
 
 	with open(config.output_path, 'w', encoding='utf-8') as out_file:
-		for entry_id in good_terms:
-			print(entry_id if config.output_ids else stub_master.title(entry_id), file=out_file)
+		for entry in good_terms:
+			out_file.write(f'{entry}\n')
 
 class TermFilter:
 	def __init__(self,
