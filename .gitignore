@@ -1,5 +1,9 @@
-# Ignore dump directories, which I name based on the date of the dump (with the year first)
+# Ignore Wiktionary dump directories, which I name based on the date of the dump (with the year first)
 2*
+
+# Ignore dump directories from other wikis
+source-*
+
 # Ignore obsolete scripts
 archive
 sandbox.*
