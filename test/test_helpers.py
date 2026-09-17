@@ -1,6 +1,12 @@
 import os.path
 import unittest
 
+import parsing.parse_stubs
+import parsing.parse_redirects
+import parsing.parse_cats
+import parsing.ns
+import parsing.lang
+
 SCRIPT_DIR = os.path.dirname(__file__)
 
 class DumpsTest(unittest.TestCase):
@@ -37,3 +43,11 @@ class DumpsTest(unittest.TestCase):
 	# ns.namespace_filter automatically appends the namespace ID and the file extension
 	output_mainspace_pages_path = output_path('pages_0.xml')
 	output_mainspace_english_pages_path = output_path('pages_0_en.xml')
+
+def prepare_data() -> None:
+	dt = DumpsTest
+	parsing.parse_stubs.parse_stubs(dt.raw_stubs_sql_path, dt.parsed_stubs_path)
+	parsing.parse_redirects.parse_redirects(dt.raw_redirects_path, dt.parsed_stubs_path, dt.parsed_redirects_path)
+	parsing.parse_cats.parse_cats(dt.raw_cats_path, dt.parsed_stubs_path, dt.raw_link_targets_path, dt.parsed_cats_path)
+	parsing.ns.namespace_filter(dt.raw_articles_path, namespace_groups=[[0]], output_path_prefix=dt.parsed_mainspace_pages_path.removesuffix('0.xml'))
+	parsing.lang.language_filter(dt.parsed_mainspace_pages_path, dt.parsed_mainspace_english_pages_path, 'English', dt.parsed_cats_path)

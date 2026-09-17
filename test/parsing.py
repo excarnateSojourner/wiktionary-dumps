@@ -15,14 +15,6 @@ import parsing.ns
 import parsing.lang
 import test.test_helpers
 
-def prepare_data() -> None:
-	dt = test.test_helpers.DumpsTest
-	parsing.parse_stubs.parse_stubs(dt.raw_stubs_sql_path, dt.parsed_stubs_path)
-	parsing.parse_redirects.parse_redirects(dt.raw_redirects_path, dt.parsed_stubs_path, dt.parsed_redirects_path)
-	parsing.parse_cats.parse_cats(dt.raw_cats_path, dt.parsed_stubs_path, dt.raw_link_targets_path, dt.parsed_cats_path)
-	parsing.ns.namespace_filter(dt.raw_articles_path, namespace_groups=[[0]], output_path_prefix=dt.parsed_mainspace_pages_path.removesuffix('0.xml'))
-	parsing.lang.language_filter(dt.parsed_mainspace_pages_path, dt.parsed_mainspace_english_pages_path, 'English', dt.parsed_cats_path)
-
 class TestSQLHelpers(test.test_helpers.DumpsTest):
 	def test_parse_sql(self):
 		stub_master = parsing.parse_stubs.StubMaster(self.parsed_stubs_path)
@@ -149,5 +141,5 @@ class TestLang(test.test_helpers.DumpsTest):
 		self.assertEqual(len(english_sections), 1, msg=f'All level 2 headings: {section_titles}')
 
 if __name__ == '__main__':
-	prepare_data()
+	test.test_helpers.prepare_data()
 	unittest.main()
