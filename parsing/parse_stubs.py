@@ -75,6 +75,11 @@ class StubMaster():
 			ns, title = ns_title
 			yield Stub(id_, ns, title)
 
+	def all_in_ns(self, ns: int) -> collections.abc.Iterator[Stub]:
+		for stub in iter(self):
+			if stub.ns == ns:
+				yield stub
+
 def stubs_gen(stubs_path: str) -> collections.abc.Iterator[Stub]:
 	with open(stubs_path, encoding='utf-8') as stubs_file:
 		for line in stubs_file:
