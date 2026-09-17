@@ -1,4 +1,4 @@
-These tiny, fake data files have been artificially created to resemble a trivially small but cohesive set of dictionary entries, sense labels, categories, templates, and redirects.
+This directory contains very simple, inexhaustive tests for the scripts I've written so that I can catch typos and syntax errors before running them on large data files. The tests use tiny, fake data files which have been artificially created to resemble a trivially small but cohesive set of dictionary entries, sense labels, categories, templates, and redirects.
 
 ==List of pages==
 
