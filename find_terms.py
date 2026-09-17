@@ -14,6 +14,7 @@ import parsing.parse_stubs
 import parsing.parse_temps
 
 PAGES_VERBOSITY_FACTOR = 10 ** 5
+CHECK_VERBOSITY_FACTOR = 10 ** 4
 TEMP_PREFIX = 'Template:'
 # The ID of Category:Form-of templates
 FORM_OF_TEMP_CAT_ID = 3991887
@@ -160,7 +161,6 @@ def main() -> None:
 		config.redirects_path,
 		form_of_temps=form_of_temps,
 		bad_terms=cat_bad_terms,
-		regex=config.regex,
 		exclude_labels=set(config.exclude_labels),
 		exclude_temps=config.exclude_temps,
 		parts_of_speech=set(config.parts_of_speech),
@@ -168,16 +168,38 @@ def main() -> None:
 	)
 
 	if config.verbose:
-		print('Checking the senses of each term...')
-	good_terms = [entry_id for entry_id in good_terms if term_filter.check_entry(entry_id)]
+		print('Checking the senses of each term:')
+	checked_terms: list[int] | list[str] = []
+	for count, entry_id in enumerate(good_terms):
+		if args.verbose and i % CHECK_VERBOSITY_FACTOR == 0:
+			print(f'{count:,}')
+		if not term_filter.check_entry(entry_id):
+			continue
+		# Regex filtering needs to happen outside of TermFilter because a lemma failing the filter does not necessarily mean that its forms fail as well
+		if config.regex and not re.fullmatch(config.regex, stub_master.title(entry_id)):
+			continue
+		checked_terms.append(entry_id)
 	if not config.output_ids:
-		good_terms = [stub_master.title(entry_id) for entry_id in good_terms]
+		checked_terms = [stub_master.title(entry_id) for entry_id in checked_terms]
 		if config.sort:
-			good_terms.sort(key=str.casefold)
+			checked_terms.sort(key=str.casefold)
 
+	if config.verbose:
+		print('Writing selected terms...')
 	with open(config.output_path, 'w', encoding='utf-8') as out_file:
-		for entry in good_terms:
+		for entry in checked_terms:
 			out_file.write(f'{entry}\n')
+
+class Entry:
+	def __init__(self, title: str):
+		self.title = title
+		self.senses: list[list[wikitextparser.Template]] = []
+
+	def __iter__(self) -> collections.abc.Iterator[list[wikitextparser.Template]]:
+		return iter(self.senses)
+
+	def add_senses(self, more_senses: list[list[wikitextparser.Template]]) -> None:
+		self.senses.extend(more_senses)
 
 class TermFilter:
 	def __init__(self,
@@ -187,25 +209,26 @@ class TermFilter:
 			redirects_path: str,
 			form_of_temps: set[str] | None = None,
 			bad_terms: collections.abc.Collection[int] | None = None,
-			regex: str = '',
 			exclude_labels: collections.abc.Container[str] | None = None,
 			exclude_temps: collections.abc.Iterable[str] | None = None,
 			parts_of_speech: collections.abc.Container[str] | None = None,
 			verbose: bool = False):
 
 		self.stub_master = stub_master
-		# Set verbose early so it can be used by find_sense_temps
-		self.verbose = verbose
-		self.sense_temps = self.find_sense_temps(pages_path, bad_terms, regex, parts_of_speech)
+		self.pages_path = pages_path
 		self.label_lang = label_lang
+		self.redirects_path = redirects_path
 		self.form_of_temps = form_of_temps or set()
+		self.cache: dict[int, bool] = {id_: False for id_ in bad_terms} if bad_terms else {}
 		self.exclude_labels = exclude_labels or set()
 		self.exclude_temps: set[str] = set()
 		if exclude_temps:
 			temps_with_nses = {(parsing.parse_temps.TEMP_NAMESPACE_ID, temp) for temp in exclude_temps}
-			for temp_with_ns in parsing.parse_redirects.add_redirects(temps_with_nses, redirects_path):
+			for temp_with_ns in parsing.parse_redirects.add_redirects(temps_with_nses, self.redirects_path):
 				self.exclude_temps.add(temp_with_ns[1])
-		self.cache = {id_: False for id_ in bad_terms} if bad_terms else {}
+		self.parts_of_speech = parts_of_speech or set()
+		self.verbose = verbose
+		self.read_entries()
 
 	def check_entry(self, term: int | str, time_to_live: int = 4) -> bool:
 		if isinstance(term, str):
@@ -224,20 +247,20 @@ class TermFilter:
 		# If after following a few links we still haven't found a lemma, assume we are in a cycle and accept the term
 		if time_to_live <= 0:
 			return True
-		if term_id not in self.sense_temps:
+		if term_id not in self.entries:
 			return False
 
-		for temps in self.sense_temps[term_id]:
-			if any(temp.normal_name() in self.exclude_temps for temp in temps):
+		for sense in self.entries[term_id]:
+			if any(temp.normal_name() in self.exclude_temps for temp in sense):
 				continue
 			try:
-				label_temp = next(temp for temp in temps if temp.normal_name() in LABEL_TEMPS and temp.get_arg('1').positional and temp.get_arg('1').value == self.label_lang)
+				label_temp = next(temp for temp in sense if temp.normal_name() in LABEL_TEMPS and temp.get_arg('1').positional and temp.get_arg('1').value == self.label_lang)
 				if any((arg.value in self.exclude_labels) for arg in label_temp.arguments[1:] if arg.positional):
 					continue
 			except StopIteration:
 				pass
 			try:
-				form_of_temp = next(temp for temp in temps if temp.normal_name() in self.form_of_temps)
+				form_of_temp = next(temp for temp in sense if temp.normal_name() in self.form_of_temps)
 				main_form = (form_of_temp.get_arg('2') or form_of_temp.get_arg('1')).value
 				if not self.check_entry(main_form, time_to_live - 1):
 					continue
@@ -246,49 +269,46 @@ class TermFilter:
 			return True
 		return False
 
-	def find_sense_temps(self,
-			pages_path: str,
-			bad_terms: collections.abc.Collection[int] | None = None,
-			regex: str | None = None,
-			parts_of_speech: collections.abc.Container[str] | None = None
-			) -> collections.defaultdict[int, list[list[wikitextparser.Template]]]:
+	@staticmethod
+	def temps_in_section(section: str) -> list[list[wikitextparser.Template]]:
+		# Empty sublists are intentionally preserved
+		return [wikitextparser.parse(line).templates for line in section.splitlines() if line.startswith('# ')]
 
-		def temps_in_section(section: str) -> list[list[wikitextparser.Template]]:
-			return [wikitextparser.parse(line).templates for line in section.splitlines() if line.startswith('# ')]
-
-		sense_temps = collections.defaultdict(list)
+	def read_entries(self) -> None:
 		if self.verbose:
 			print('\nLoading pages data:')
 
-		for count, page in enumerate(parsing.etree_helpers.pages_gen(pages_path)):
+		self.entries: dict[int, Entry] = {}
+		for count, page in enumerate(parsing.etree_helpers.pages_gen(self.pages_path)):
+			if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
+				print(f'{count:,}')
+
 			page_id = int(page.findtext('./id'))
 			page_title = page.findtext('./title')
 			page_text = page.findtext('./revision/text')
-			if not page_text:
-				continue
-			if not (bad_terms and page_id in bad_terms) and not (regex and not re.fullmatch(regex, page_title)):
-				if parts_of_speech:
-					# Assume lang has removed all L2 sections except for the relevant one
+			if self.cache.get(page_id, True) and page_text:
+				entry = Entry(page_title)
+				if self.parts_of_speech:
+					# Assume parsing.lang been used to remove all L2 sections except for the relevant one
 					wikitext: wikitextparser.Section = wikitextparser.parse(page_text).get_sections(level=2)[0]
 					for section in wikitext.get_sections(level=3):
 						# Multiple etymologies
 						if re.fullmatch(r'Etymology \d+', section.title):
 							for subsection in section.get_sections(level=4):
-								if subsection.title.casefold() in parts_of_speech:
-									sense_temps[page_id].extend(temps_in_section(subsection.contents))
+								if subsection.title.casefold() in self.parts_of_speech:
+									entry.add_senses(self.temps_in_section(subsection.contents))
 						# Single etymology
 						else:
-							if section.title.casefold() in parts_of_speech:
-								sense_temps[page_id].extend(temps_in_section(section.contents))
-
+							if section.title.casefold() in self.parts_of_speech:
+								entry.add_senses(self.temps_in_section(section.contents))
 				# No parts of speech specified
 				else:
-					sense_temps[page_id] = temps_in_section(page_text)
+					entry.add_senses(self.temps_in_section(page_text))
 
-			if self.verbose and count % PAGES_VERBOSITY_FACTOR == 0:
-				print(f'{count:,}')
+				if entry.senses:
+					self.entries[page_id] = entry
 
-		return sense_temps
+			page.clear()
 
 # End of TermFilter
 
