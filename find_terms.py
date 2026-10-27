@@ -5,6 +5,7 @@ import os.path
 import re
 
 import wikitextparser
+import wordfreq
 
 import deep_cat
 import parsing.etree_helpers
@@ -19,6 +20,7 @@ TEMP_PREFIX = 'Template:'
 # The ID of Category:Form-of templates
 FORM_OF_TEMP_CAT_ID = 3991887
 LABEL_TEMPS = {'label', 'lb', 'lbl'}
+WORD_FREQ_FACTOR = 10 ** 8
 
 def main() -> None:
 	parser = argparse.ArgumentParser()
@@ -36,18 +38,20 @@ def main() -> None:
 	# m for memory
 	parser.add_argument('-m', '--small-ram', action='store_true', help='Indicates that not enough memory (RAM) is available to read all category associations into memory, so they should instead be repeatedly read from disk, even though this is slower. Otherwise this program may use several gigabytes of RAM. (In 2024-01 I ran this with all category associations for the English Wiktionary and it used about 8 GB of RAM.) Ignored if neither --include-cats nor --exclude-cats is given.')
 	parser.add_argument('-x', '--regex', help='A regular expression that terms must fully match to be included. Matching is performed by Python\'s re.fullmatch(), so see that module\'s documentation for details. Note that the entire term must "fit within" the given regex, so if you want to find terms that merely *contain* a particular pattern, add .* at the beginning and end of your regex.')
-	parser.add_argument('-l', '--label-lang', default='en', help='The Wiktionary language code (usually the ISO 639 code) of the language for which to exclude labels. Defaults to "en" for English. Ignored if --exclude-labels is not also given.')
+	parser.add_argument('-l', '--lang-code', default='en', help='The ISO 639 code of the language for which to exclude labels and / or check a word\'s frequency. Defaults to "en" for English. Ignored if --exclude-labels is not also given.')
 	# b is the second letter in the commonly used alias {{lb}}
-	parser.add_argument('-b', '--exclude-labels', nargs='+', default=[], help='If a sense of a term has one of these labels, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.) Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --label-lang.')
+	parser.add_argument('-b', '--exclude-labels', nargs='+', default=[], help='If a sense of a term has one of these labels, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.) Labels are positional arguments of the {{label}} (AKA {{lb}}) template (excluding the language code). Requires --lang-code.')
 	parser.add_argument('-t', '--exclude-temps', nargs='+', default=[], help='If a given template given here is used in a sense of a term, that sense will not support the inclusion of the term. (The term may still be included if it has other "valid" senses.)')
 	# f for form-of
 	parser.add_argument('-f', '--temps-cache-path', help='The path of a file in which to cache (and later retrieve) a list of templates required for form-of filtering.')
 	# n for noun
 	parser.add_argument('-n', '--parts-of-speech', nargs='+', default=[], help='If a sense is not one of these parts of speech (think noun, verb, etc) then it will not support the inclusion of a term. Case insensitive.')
+	# j was the first untaken letter alphabetically
+	parser.add_argument('-j', '--min-frequency', type=int, help='The minimum number of times a word must be used per 100 million words (according to wordfreq) to be included. This option only makes sense if you are excluding multiword terms. Requires --lang-code.')
 	# u is the first untaken letter in 'output ids'
 	parser.add_argument('-u', '--output-ids', action='store_true', help='Output the MediaWiki entry IDs of the selected entries rather than the titles of the entries.')
-	# h is the first untaken letter alphabetically
-	parser.add_argument('-q', '--sort', action='store_true', help='Sort the titles (case-insensitively) of the selected entries before writing them to the output file. Ignored if --output-ids is given.')
+	# k was the first untaken letter alphabetically
+	parser.add_argument('-k', '--sort', action='store_true', help='Sort the titles (case-insensitively) of the selected entries before writing them to the output file. Ignored if --output-ids is given.')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
@@ -78,7 +82,8 @@ def main() -> None:
 	dependencies = {
 		'include-cats': 'cats-path',
 		'exclude-cats': 'cats-path',
-		'exclude-labels': 'label-lang'
+		'exclude-labels': 'lang-code',
+		'min-frequency': 'lang-code'
 	}
 	for used, req in dependencies.items():
 		if getattr(config, used.replace('-', '_')) and not getattr(config, req.replace('-', '_')):
@@ -157,7 +162,7 @@ def main() -> None:
 	term_filter = TermFilter(
 		stub_master,
 		config.pages_path,
-		config.label_lang,
+		config.lang_code,
 		config.redirects_path,
 		form_of_temps=form_of_temps,
 		bad_terms=cat_bad_terms,
@@ -171,12 +176,14 @@ def main() -> None:
 		print('Checking the senses of each term:')
 	checked_terms: list[int] | list[str] = []
 	for count, entry_id in enumerate(good_terms):
-		if args.verbose and i % CHECK_VERBOSITY_FACTOR == 0:
+		if config.verbose and count % CHECK_VERBOSITY_FACTOR == 0:
 			print(f'{count:,}')
 		if not term_filter.check_entry(entry_id):
 			continue
-		# Regex filtering needs to happen outside of TermFilter because a lemma failing the filter does not necessarily mean that its forms fail as well
+		# Regex and frequency filtering need to happen outside of TermFilter because a lemma failing one of these filters does not necessarily mean that its forms fail as well
 		if config.regex and not re.fullmatch(config.regex, stub_master.title(entry_id)):
+			continue
+		if config.min_frequency and wordfreq.word_frequency(stub_master.title(entry_id), config.lang_code) * WORD_FREQ_FACTOR < config.min_frequency:
 			continue
 		checked_terms.append(entry_id)
 	if not config.output_ids:
@@ -205,7 +212,7 @@ class TermFilter:
 	def __init__(self,
 			stub_master: parsing.parse_stubs.StubMaster,
 			pages_path: str,
-			label_lang: str,
+			lang_code: str,
 			redirects_path: str,
 			form_of_temps: set[str] | None = None,
 			bad_terms: collections.abc.Collection[int] | None = None,
@@ -216,7 +223,7 @@ class TermFilter:
 
 		self.stub_master = stub_master
 		self.pages_path = pages_path
-		self.label_lang = label_lang
+		self.lang_code = lang_code
 		self.redirects_path = redirects_path
 		self.form_of_temps = form_of_temps or set()
 		self.cache: dict[int, bool] = {id_: False for id_ in bad_terms} if bad_terms else {}
@@ -254,7 +261,7 @@ class TermFilter:
 			if any(temp.normal_name() in self.exclude_temps for temp in sense):
 				continue
 			try:
-				label_temp = next(temp for temp in sense if temp.normal_name() in LABEL_TEMPS and temp.get_arg('1').positional and temp.get_arg('1').value == self.label_lang)
+				label_temp = next(temp for temp in sense if temp.normal_name() in LABEL_TEMPS and temp.get_arg('1').positional and temp.get_arg('1').value == self.lang_code)
 				if any((arg.value in self.exclude_labels) for arg in label_temp.arguments[1:] if arg.positional):
 					continue
 			except StopIteration:
