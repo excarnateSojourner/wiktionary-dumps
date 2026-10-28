@@ -308,7 +308,8 @@ class TermFilter:
 					wikitext: wikitextparser.Section = wikitextparser.parse(page_text).get_sections(level=2)[0]
 					for section in wikitext.get_sections(level=3):
 						# Multiple etymologies
-						if re.fullmatch(r'Etymology \d+', section.title):
+						# In rare cases pronunciation sections are numbered and parts of speech are put underneath them, as at "abstract"
+						if re.search(r' \d+$', section.title):
 							for subsection in section.get_sections(level=4):
 								if subsection.title.casefold() in self.parts_of_speech:
 									entry.add_senses(self.temps_in_section(subsection.contents))
