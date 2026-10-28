@@ -1,0 +1,30 @@
+= Parts of speech =
+These are all parts of speech that appear at least 10 times in English entries (as of 26-06-01). They are ordered by how often they appear.
+
+noun
+verb
+proper noun
+adjective
+adverb
+phrase
+interjection
+prepositional phrase
+prefix
+suffix
+proverb
+pronoun
+contraction
+preposition
+numeral
+symbol
+conjunction
+determiner
+letter
+participle
+particle
+number
+punctuation mark
+infix
+interfix
+article
+diacritical mark
