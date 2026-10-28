@@ -100,16 +100,24 @@ def main() -> None:
 	if config.initial_terms_path:
 		with open(config.initial_terms_path, encoding='utf-8') as initial_terms_file:
 			first_line = next(initial_terms_file)[:-1]
-			# Assume entry IDs are being given
 			try:
-				good_terms.append(int(first_line))
+				first_id = int(first_line)
+				given_as_ids = True
+			except ValueError:
+				given_as_ids = False
+
+			if given_as_ids:
+				good_terms.append(first_id)
 				for line in initial_terms_file:
 					good_terms.append(int(line))
-			# Terms are being given rather than entry IDs
-			except ValueError:
+			else:
 				good_terms.append(stub_master.id(first_line))
 				for line in initial_terms_file:
-					good_terms.append(stub_master.id(line[:-1]))
+					try:
+						good_terms.append(stub_master.id(line[:-1]))
+					# The term has no entry, so it's excluded
+					except KeyError:
+						continue
 
 	def deep_cat_proxy(cats: set[int], return_titles: bool, depth: int = config.depth):
 		if config.small_ram:
